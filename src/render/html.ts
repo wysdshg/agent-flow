@@ -263,7 +263,12 @@ document.getElementById("resetbtn").addEventListener("click",function(){clearPos
 
 (function initLegend(){var h="";STATE_ORDER.forEach(function(s){h+='<span><span class="dot" style="background:'+COLORS[s]+'"></span>'+LABELS[s]+"</span>";});document.getElementById("legend").innerHTML=h;})();
 
-renderModule("0");
+var HP={};location.hash.replace("#","").split("&").forEach(function(p){var kv=p.split("=");if(kv[0])HP[kv[0]]=kv[1];});
+var startMod=HP.m&&MODS[HP.m]?HP.m:"0";
+if(startMod!=="0")stack=[];
+renderModule(startMod);
+if(HP.n){var hn=nodeById(HP.n);if(hn)showDetail(hn);}
+if(HP.fit||HP.m||HP.n)fit();
 `;
 
 const HTML_HEAD = `<!DOCTYPE html>

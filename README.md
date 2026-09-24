@@ -1,106 +1,138 @@
+<div align="center">
+
 # agent-flow
 
-给 AI agent 用的项目进度/流程可视化插件（MCP server）。
+**Let your AI agent maintain a living flowchart of the project — so you never read 10,000-word status docs again.**
 
-**解决的问题**：项目做久了，AI 写的几万字 Markdown 文档没人看得下去，专业术语一堆，到底做到哪了全靠猜。agent-flow 让 agent 在开发过程中用工具维护一张流程图，你随时用浏览器打开一张图，就能看懂：
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/Protocol-MCP-blue)](https://modelcontextprotocol.io)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](https://github.com/wysdshg/agent-flow/pulls)
 
-- 项目拆成了哪几块，每块什么关系
-- 每个功能做到哪一步了（7 种颜色状态）
-- 哪里有 bug、哪里在等你拍板
+[**🎮 Live Demo**](https://wysdshg.github.io/agent-flow/demo.html) · [中文文档](README.zh-CN.md) · [Report Issue](https://github.com/wysdshg/agent-flow/issues)
 
-## 快速开始
+<img src="docs/screenshots/main.png" alt="agent-flow viewer" width="860">
+
+</div>
+
+---
+
+## The Problem
+
+If you build projects **with AI agents** (Trae, Cursor, Claude Code, ...), you know this loop:
+
+- The agent writes **10,000-word Markdown** progress docs — nobody reads them
+- Half the terms it uses you don't understand, so trust erodes
+- Weeks in, the project has drifted far from the original plan and **nobody knows what's done, what's broken, and what's waiting on you**
+
+**agent-flow flips this**: the agent maintains a single flowchart (`flow.json`) as it works. You open one HTML file and *see* everything:
+
+- How the project is decomposed and what connects to what
+- Which features are done, in progress, or just planned — **7 color-coded states**
+- Where the bugs are and which nodes are waiting for your decision
+
+No more reading. Just look.
+
+## How It Works
+
+```text
+You ──talk──> AI agent ──calls 14 MCP tools──> .flow/flow.json (single source of truth)
+                                                    │
+              You <──open in browser── .flow/flow.html (auto-rendered, zero deps)
+```
+
+1. **Install once**, register the MCP server in your AI tool
+2. **Talk normally**: "add a payment module", "we shipped the login API" — the agent records it into the graph
+3. **Open `flow.html`** anytime: zoom, drag, click nodes for details, double-click modules to drill into subgraphs
+
+**Live demo** (no install): [wysdshg.github.io/agent-flow/demo.html](https://wysdshg.github.io/agent-flow/demo.html) — drag nodes, click for details, double-click a module to enter its subgraph.
+
+## Quick Start
 
 ```bash
 git clone https://github.com/wysdshg/agent-flow.git
-cd agent-flow
-npm install
-npm run build
-npm link                     # 全局注册 agent-flow 命令
-npx agent-flow init          # 在你的项目里执行：生成 .flow/ 并打印 MCP 配置
+cd agent-flow && npm install && npm run build
+npm link                # registers the `agent-flow` CLI globally
+npx agent-flow init     # inside YOUR project: creates .flow/ and prints MCP config
 ```
 
-### 接入 MCP 客户端（Trae / Claude Desktop / Cursor 等）
-
-`init` 会打印配置片段，把其中的路径换成你本机的 clone 路径即可：
+Then add the MCP server to your AI tool (Trae / Claude Desktop / Cursor / any MCP client):
 
 ```json
 {
   "mcpServers": {
     "agent-flow": {
-      "command": "node",
-      "args": ["<本仓库路径>/dist/index.js", "mcp"]
+      "command": "agent-flow",
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-> 已 `npm link` 的话也可以用 `"command": "agent-flow", "args": ["mcp"]`。
-> 指定项目根目录：设置环境变量 `AGENT_FLOW_ROOT`（默认为进程工作目录）。
+> - Claude Code: `claude mcp add agent-flow -- agent-flow mcp`
+> - Cursor: put the JSON above in `.cursor/mcp.json`
+> - No MCP environment? Use the CLI fallback: `agent-flow batch spec.json` builds the whole graph from one JSON file and renders it.
 
-之后对 agent 说"整理一下这个项目的流程"或正常开发即可，agent 会通过 14 个工具维护 `.flow/flow.json` 并渲染 `.flow/flow.html`。
+Now just tell your agent: **"Organize this project's progress into a flowchart"** — and keep talking to it normally while it maintains the graph.
 
-### CLI 降级通道（没有 MCP 环境时）
+## The 7-State System
 
-```bash
-agent-flow init                 # 初始化 + 打印 MCP 配置
-agent-flow batch spec.json      # 从 JSON spec 一次性建图（整理旧项目），自动渲染
-agent-flow apply ops.json       # 依次执行 [{"tool":"add_node","args":{...}},...]
-agent-flow render               # 重新布局并刷新 flow.html
-agent-flow status               # 进度总览（JSON）
-agent-flow validate             # 校验图合法性
-agent-flow mcp                  # 启动 MCP stdio 服务
-```
+Every node carries an honest, test-backed status. The agent is instructed (via the bundled SKILL.md) to only mark `completed` after tests pass:
 
-示例 spec 见 [examples/demo.flow.json](examples/demo.flow.json)，跑一下看效果：
-
-```bash
-mkdir -p /tmp/demo && cd /tmp/demo
-agent-flow batch <本仓库>/examples/demo.flow.json
-# 用浏览器打开 .flow/flow.html
-```
-
-## 状态体系（固定 7 色）
-
-| 状态 | 颜色 | 含义 |
+| State | Color | Meaning |
 |---|---|---|
-| completed | 🟢 绿 | 写完且测试通过 |
-| in_progress | 🔵 浅蓝 | 正在写 |
-| planned | 🔷 深蓝 | 方案已定，还没动手 |
-| broken | 🔴 红 | 有 bug |
-| to_plan | ⚪ 灰 | 待规划的想法 |
-| pending_decision | 🟡 黄 | 需要用户拍板 |
-| deprecated | 🟤 棕 | 已废弃 |
+| `completed` | 🟢 green | done and tested |
+| `in_progress` | 🔵 light blue | being written now |
+| `planned` | 🔷 dark blue | design settled, not started |
+| `broken` | 🔴 red | has a bug |
+| `to_plan` | ⚪ gray | raw idea, not yet planned |
+| `pending_decision` | 🟡 yellow | **waiting for you to decide** |
+| `deprecated` | 🟤 brown | abandoned, kept for history |
 
-## 节点类型（22 种）
+**Module nodes aggregate their children**: all done → green; one unfinished state → that color; mixed states → the module shows all of them as color segments. Deprecated nodes are ignored — dead code shouldn't raise alarms.
 
-- 流程：`start` `end` `process` `judge` `module`
-- 数据资源：`database` `table` `file` `sql`
-- AI 应用：`llm` `tool_call` `retrieval` `rerank` `assemble` `api` `embedding` `cache` `queue` `prompt` `agent` `human_loop` `checkpoint`
+## 22 Node Types
 
-`module / llm / tool_call / agent / assemble` 支持多输入/输出端口；`table / sql` 绑定 `database` 节点（自动挂在其下方）；`module` 节点双击可跳转子模块画布。布局由 dagre 自动完成（从左到右），无需坐标。
+- **Flow**: `start` `end` `process` `judge` `module`
+- **Data**: `database` `table` `file` `sql` (tables auto-attach to their database)
+- **AI apps**: `llm` `tool_call` `retrieval` `rerank` `assemble` `api` `embedding` `cache` `queue` `prompt` `agent` `human_loop` `checkpoint`
 
-## 查看器功能
+`module / llm / tool_call / agent / assemble` support multi in/out ports. Layout is fully automatic (dagre, left-to-right) — the agent never deals with coordinates.
 
-单文件 `flow.html`，零依赖，双击即开：滚轮缩放、拖拽平移、节点详情侧栏（含代码定位）、双击 module 进子图（面包屑返回）、状态统计面板、图内节点拖动（会话内临时）。
+## Human-in-the-Loop Editing
 
-## 文件结构
+Drag nodes to rearrange (saved in your browser, never pollutes the JSON the AI reads). Right-click-drag to box-select and move groups. If you change a node's state or delete it in the viewer, it generates a small ops JSON — **paste it back to your agent and it syncs the graph**, always re-reading the latest file first.
 
-```
-.flow/
-  flow.json    # 唯一数据源（进 git，团队/agent 共享）
-  flow.html    # 渲染产物（建议进 git，方便直接看）
-skill/SKILL.md # 给 agent 看的使用规范（配 skill 时引用它）
-src/
-  core/        # schema / 存储 / 14 个图操作纯函数 / 校验
-  layout/      # dagre 自动布局
-  render/      # 单文件 HTML 查看器生成
-  mcp/         # MCP stdio server（14 工具）
-  index.ts     # CLI 入口
-```
-
-## 开发
+## CLI Reference
 
 ```bash
-npm run build   # tsc 构建
-npm test        # 冒烟测试（tsx）
+agent-flow init                 # init + print MCP config
+agent-flow batch spec.json      # one-shot graph build (great for retrofitting old projects)
+agent-flow apply ops.json       # run [{"tool":"add_node","args":{...}}, ...]
+agent-flow render               # re-layout + refresh flow.html
+agent-flow status               # progress overview (JSON)
+agent-flow validate             # graph sanity check
+agent-flow mcp                  # start the MCP stdio server
 ```
+
+## Why Not Mermaid / draw.io?
+
+| | Mermaid | draw.io | agent-flow |
+|---|---|---|---|
+| AI maintains it as it codes | text diffs, merge hell | can't | ✅ 14 typed tools |
+| Status colors (7 states) | manual | manual | ✅ built-in semantics |
+| Human view | re-render | yes | ✅ zero-dep single HTML |
+| Coordinates | manual | manual | ✅ automatic (dagre) |
+
+## Development
+
+```bash
+npm run build   # tsc
+npm test        # smoke tests (tsx)
+```
+
+<div align="center">
+
+**If agent-flow saves you from doc-hell, please give it a ⭐ — it helps other builders find it.**
+
+</div>
