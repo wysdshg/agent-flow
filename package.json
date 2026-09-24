@@ -1,0 +1,37 @@
+{
+  "name": "agent-flow",
+  "version": "0.1.0",
+  "description": "AI 项目的活流程图：MCP 插件让 agent 边开发边维护项目进度流程图，生成单文件 HTML 查看器",
+  "type": "module",
+  "bin": {
+    "agent-flow": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx test/smoke.ts",
+    "mcp": "node dist/index.js mcp"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "flowchart",
+    "ai-agent",
+    "diagram",
+    "project-management"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "dagre": "^0.8.5",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.52",
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT"
+}

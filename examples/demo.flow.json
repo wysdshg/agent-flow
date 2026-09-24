@@ -1,0 +1,96 @@
+{
+  "project": "AI 网文生成器（示例）",
+  "modules": [
+    {
+      "id": 0,
+      "name": "主流程图",
+      "description": "项目主图：三大模块 + 全局资源。细节双击模块节点进入子画布",
+      "nodes": [
+        { "id": "S_start", "type": "start", "name": "开始", "description": "作者打开工作台网页", "state": "completed" },
+        { "id": "M_gen", "type": "module", "name": "章节生成", "description": "按大纲调大模型写正文并存库", "state": "completed", "target": "1", "inputs": ["大纲", "记忆"], "outputs": ["章节稿"] },
+        { "id": "M_rag", "type": "module", "name": "记忆检索", "description": "把前文剧情和角色设定找出来，拼进提示词，让 AI 记得前文", "state": "in_progress", "target": "2", "inputs": ["前文", "角色设定"], "outputs": ["相关记忆"] },
+        { "id": "M_review", "type": "module", "name": "审校发布", "description": "作者人工看稿提意见，改完定稿后发布", "state": "pending_decision", "target": "3", "inputs": ["章节稿"], "outputs": ["定稿"] },
+        { "id": "DB_story", "type": "database", "name": "故事数据库", "description": "SQLite 单文件库存章节、角色、大纲", "state": "completed", "location": "data/story.db" },
+        { "id": "LLM_writer", "type": "llm", "name": "写作大模型", "description": "负责把提示词变成正文的那个大模型", "state": "completed", "inputs": ["提示词"], "outputs": ["正文"] },
+        { "id": "F_outline", "type": "file", "name": "大纲文档", "description": "作者维护的分卷大纲 Markdown", "state": "completed", "location": "docs/outline.md" },
+        { "id": "Q_gen_job", "type": "queue", "name": "生成任务队列", "description": "排队执行章节生成任务，防止同时跑太多", "state": "in_progress", "location": "src/queue/" },
+        { "id": "T_chapter", "type": "table", "name": "chapter", "description": "存每一章的正文和状态", "state": "completed", "dbNodeId": "DB_story", "fields": [
+          { "name": "id", "type": "integer", "desc": "章节编号" },
+          { "name": "volume_no", "type": "integer", "desc": "第几卷" },
+          { "name": "content", "type": "text", "desc": "正文" },
+          { "name": "status", "type": "varchar(16)", "desc": "draft/待审/已发布" }
+        ] },
+        { "id": "T_role", "type": "table", "name": "role", "description": "角色设定，检索模块会用到", "state": "completed", "dbNodeId": "DB_story", "fields": [
+          { "name": "id", "type": "integer", "desc": "角色编号" },
+          { "name": "name", "type": "varchar(64)", "desc": "角色名" },
+          { "name": "profile", "type": "text", "desc": "人设" }
+        ] },
+        { "id": "Q_recent", "type": "sql", "name": "最近章节查询", "description": "生成新章时取前 10 章，让 AI 记得最近的剧情", "state": "in_progress", "dbNodeId": "DB_story", "sql": "SELECT content FROM chapter ORDER BY volume_no DESC, id DESC LIMIT 10" }
+      ],
+      "edges": [
+        { "from": "S_start", "to": "M_gen", "text": "选卷开写" },
+        { "from": "M_rag", "to": "M_gen", "text": "记忆注入" },
+        { "from": "M_gen", "to": "M_review", "text": "章节稿" },
+        { "from": "F_outline", "to": "M_gen", "text": "大纲" }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "章节生成模块",
+      "description": "大纲 → 提示词 → 调大模型 → 存库 的完整链路（已完成）",
+      "nodes": [
+        { "id": "P1_outline", "type": "process", "name": "取当前卷大纲", "description": "从大纲文档里切出本章要用的一段", "state": "completed", "location": "src/generate/outline.ts" },
+        { "id": "P1_prompt", "type": "prompt", "name": "写作提示词模板", "description": "填入大纲和记忆，生成给大模型的完整提示词", "state": "completed", "location": "src/generate/prompt.ts" },
+        { "id": "P1_draft", "type": "process", "name": "调大模型写正文", "description": "把提示词发给写作大模型，拿回约 3000 字正文", "state": "completed", "location": "src/generate/draft.ts" },
+        { "id": "C1_save", "type": "checkpoint", "name": "存稿存档点", "description": "写完立刻存库，断了也能从这里续", "state": "completed", "location": "src/generate/save.ts" },
+        { "id": "P1_end", "type": "end", "name": "本章完成", "description": "章节进入待审列表", "state": "completed" }
+      ],
+      "edges": [
+        { "from": "P1_outline", "to": "P1_prompt", "text": "大纲片段" },
+        { "from": "P1_prompt", "to": "P1_draft", "text": "提示词" },
+        { "from": "P1_draft", "to": "C1_save", "text": "正文" },
+        { "from": "C1_save", "to": "P1_end" }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "记忆检索模块",
+      "description": "从故事库找前文相关内容，重排后拼进提示词（进行中，重排有 bug）",
+      "nodes": [
+        { "id": "P2_query", "type": "retrieval", "name": "查相关剧情", "description": "拿当前章节开头当问题，去故事库里搜前文相似的段落", "state": "in_progress", "location": "src/memory/retrieve.ts" },
+        { "id": "J2_enough", "type": "judge", "name": "搜到的够用吗？", "description": "结果太少就走兜底逻辑", "state": "to_plan" },
+        { "id": "T2_rerank", "type": "tool_call", "name": "重排工具调用", "description": "调用外部重排服务给搜到的段落按相关度排序", "state": "broken", "location": "src/memory/rerank.ts" },
+        { "id": "E2_embed", "type": "embedding", "name": "段落向量化", "description": "把每段文字变成一串数字，方便算相似度", "state": "planned" },
+        { "id": "C2_cache", "type": "cache", "name": "向量缓存", "description": "向量算一次就存起来，下次直接用", "state": "pending_decision" },
+        { "id": "A2_asm", "type": "assemble", "name": "组装上下文", "description": "把设定、前文、大纲按顺序拼成最终提示词", "state": "in_progress", "inputs": ["相关段落", "角色设定", "大纲"], "outputs": ["最终提示词"] }
+      ],
+      "edges": [
+        { "from": "P2_query", "to": "J2_enough", "text": "候选段落" },
+        { "from": "J2_enough", "to": "T2_rerank", "text": "够用" },
+        { "from": "J2_enough", "to": "A2_asm", "text": "不够，直接用前一章" },
+        { "from": "T2_rerank", "to": "A2_asm", "text": "排序结果" },
+        { "from": "E2_embed", "to": "P2_query", "text": "相似度" }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "审校发布模块",
+      "description": "作者拍板环节：人工审 + Agent 预审（方案待定）+ 发布",
+      "nodes": [
+        { "id": "AG3_review", "type": "agent", "name": "预审 Agent", "description": "先用 AI 自己查一遍错别字和剧情矛盾，减轻作者负担", "state": "planned", "inputs": ["章节稿"], "outputs": ["审校意见"] },
+        { "id": "H3_human", "type": "human_loop", "name": "作者人工审校", "description": "作者在网页上看稿、批注、决定过不过", "state": "in_progress", "inputs": ["章节稿", "审校意见"] },
+        { "id": "P3_fix", "type": "process", "name": "按意见改写", "description": "把作者批注发给大模型重新生成对应段落", "state": "in_progress", "location": "src/review/revise.ts" },
+        { "id": "A3_pub", "type": "api", "name": "发布接口", "description": "定稿后调平台接口发布本章", "state": "planned", "location": "src/review/publish.ts" },
+        { "id": "OLD_prompt", "type": "prompt", "name": "旧版提示词模板", "description": "v1 的模板，已被 P1_prompt 替代，别再用", "state": "deprecated", "location": "src/generate/prompt.v1.ts" },
+        { "id": "S3_end", "type": "end", "name": "已发布", "description": "本章流程结束", "state": "completed" }
+      ],
+      "edges": [
+        { "from": "AG3_review", "to": "H3_human", "text": "预审意见" },
+        { "from": "H3_human", "to": "P3_fix", "text": "不过，批注" },
+        { "from": "P3_fix", "to": "H3_human", "text": "改稿重审" },
+        { "from": "H3_human", "to": "A3_pub", "text": "定稿" },
+        { "from": "A3_pub", "to": "S3_end" }
+      ]
+    }
+  ]
+}
