@@ -104,7 +104,7 @@ function moduleFills(n){var base=COLORS[n.state]||"#959da5";
 if(n.type!=="module"||!n.target||!MODS[n.target])return [base];
 var sub=MODS[n.target];if(!sub.nodes.length)return [base];
 var seen={},allDone=true;
-sub.nodes.forEach(function(x){if(x.state!=="completed")allDone=false;seen[x.state]=1;});
+sub.nodes.forEach(function(x){if(x.state==="deprecated")return;if(x.state!=="completed")allDone=false;seen[x.state]=1;});
 if(allDone)return [COLORS.completed];
 var ks=STATE_ORDER.filter(function(s){return s!=="completed"&&seen[s];}).map(function(s){return COLORS[s];});
 return ks.length?ks:[COLORS.completed];}
