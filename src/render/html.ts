@@ -216,7 +216,7 @@ if(drag&&ev.button===0){if(drag.moved){savePos(cur);redrawOnly();toast("布局�
 document.addEventListener("click",function(ev){
 if(!ev.target||!ev.target.closest)return;
 var ind=ev.target.closest("#detail");
-if(ind&&!ev.target.closest("[data-close]")&&!ev.target.closest("[data-copy]")&&!ev.target.closest("[data-open]")&&!ev.target.closest(".ops"))return;
+if(ind){
 var opb=ev.target.closest("[data-op]");
 if(opb&&curDetail){if(opb.getAttribute("data-op")==="state"){var ssv=document.getElementById("stsel");if(ssv)showOps([{tool:"update_node",args:{moduleID:cur,nodeID:curDetail.id,patch:{state:ssv.value}}}]);}
 else{showOps([{tool:"delete_node",args:{moduleID:cur,nodeID:curDetail.id}}]);}return;}
@@ -228,11 +228,12 @@ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.write
 else{toast("浏览器不支持一键复制，请手动选择");}return;}
 var op=ev.target.closest("[data-open]");
 if(op){if(stack.indexOf(cur)<0)stack.push(cur);renderModule(op.getAttribute("data-open"));return;}
+if(ev.target.closest("[data-close]")){hideDetail();return;}
+return;}
 var go=ev.target.closest("[data-go]");
 if(go){var dest=go.getAttribute("data-go");
 if(dest==="root"){stack=[];}else{var idx=stack.indexOf(dest);if(idx>=0)stack=stack.slice(0,idx);}
 renderModule(dest==="root"?"0":dest);return;}
-if(ev.target.closest("[data-close]")){hideDetail();return;}
 var ng=ev.target.closest("g.node");
 if(ng){if(drag&&drag.moved)return;var n=nodeById(ng.getAttribute("data-id"));if(n){showDetail(n);return;}}
 var eg=ev.target.closest("g.edge");
