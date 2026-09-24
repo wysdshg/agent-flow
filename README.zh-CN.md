@@ -4,6 +4,7 @@
 
 **让 AI agent 在开发时顺手维护一张项目流程图 —— 你再也不用读几万字的进度文档。**
 
+[![npm version](https://img.shields.io/npm/v/%40wysdshg%2Fagent-flow-mcp)](https://www.npmjs.com/package/@wysdshg/agent-flow-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-blue)](https://modelcontextprotocol.io)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
