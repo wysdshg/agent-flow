@@ -35,8 +35,8 @@
 ## 三步上手
 
 ```bash
-npm i -g agent-flow-mcp      # 全局安装（CLI + MCP 服务）
-npx agent-flow init          # 在"你的项目"里执行：生成 .flow/ 并打印 MCP 配置
+npm i -g @wysdshg/agent-flow-mcp   # 全局安装（CLI + MCP 服务）
+agent-flow init              # 在"你的项目"里执行：生成 .flow/ 并打印 MCP 配置
 ```
 
 <details>

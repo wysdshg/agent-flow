@@ -50,8 +50,8 @@ You ──talk──> AI agent ──calls 14 MCP tools──> .flow/flow.json (
 ## Quick Start
 
 ```bash
-npm i -g agent-flow-mcp       # install the CLI + MCP server globally
-npx agent-flow init           # inside YOUR project: creates .flow/ and prints MCP config
+npm i -g @wysdshg/agent-flow-mcp   # install the CLI + MCP server globally
+agent-flow init               # inside YOUR project: creates .flow/ and prints MCP config
 ```
 
 <details>

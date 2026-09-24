@@ -1,5 +1,5 @@
 {
-  "name": "agent-flow-mcp",
+  "name": "@wysdshg/agent-flow-mcp",
   "version": "0.1.0",
   "description": "A living flowchart for AI-coded projects: MCP server that lets your agent maintain a 7-state project flowchart (14 tools, auto-layout, zero-dependency HTML viewer)",
   "type": "module",
