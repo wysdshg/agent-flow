@@ -1,26 +1,48 @@
 {
-  "name": "agent-flow",
+  "name": "agent-flow-mcp",
   "version": "0.1.0",
-  "description": "AI 项目的活流程图：MCP 插件让 agent 边开发边维护项目进度流程图，生成单文件 HTML 查看器",
+  "description": "A living flowchart for AI-coded projects: MCP server that lets your agent maintain a 7-state project flowchart (14 tools, auto-layout, zero-dependency HTML viewer)",
   "type": "module",
   "bin": {
     "agent-flow": "dist/index.js"
   },
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "skill",
+    "examples",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "tsx test/smoke.ts",
     "mcp": "node dist/index.js mcp"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wysdshg/agent-flow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wysdshg/agent-flow/issues"
+  },
+  "homepage": "https://wysdshg.github.io/agent-flow/demo.html",
   "engines": {
     "node": ">=18"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "flowchart",
     "ai-agent",
+    "claude-code",
+    "cursor",
+    "trae",
     "diagram",
-    "project-management"
+    "visualization",
+    "project-management",
+    "dagre"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

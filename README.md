@@ -50,11 +50,19 @@ You ──talk──> AI agent ──calls 14 MCP tools──> .flow/flow.json (
 ## Quick Start
 
 ```bash
-git clone https://github.com/wysdshg/agent-flow.git
-cd agent-flow && npm install && npm run build
-npm link                # registers the `agent-flow` CLI globally
-npx agent-flow init     # inside YOUR project: creates .flow/ and prints MCP config
+npm i -g agent-flow-mcp       # install the CLI + MCP server globally
+npx agent-flow init           # inside YOUR project: creates .flow/ and prints MCP config
 ```
+
+<details>
+<summary>Install from source (alternative)</summary>
+
+```bash
+git clone https://github.com/wysdshg/agent-flow.git
+cd agent-flow && npm install && npm run build && npm link
+```
+
+</details>
 
 Then add the MCP server to your AI tool (Trae / Claude Desktop / Cursor / any MCP client):
 

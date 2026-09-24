@@ -35,11 +35,19 @@
 ## 三步上手
 
 ```bash
-git clone https://github.com/wysdshg/agent-flow.git
-cd agent-flow && npm install && npm run build
-npm link                    # 全局注册 agent-flow 命令
-npx agent-flow init         # 在"你的项目"里执行：生成 .flow/ 并打印 MCP 配置
+npm i -g agent-flow-mcp      # 全局安装（CLI + MCP 服务）
+npx agent-flow init          # 在"你的项目"里执行：生成 .flow/ 并打印 MCP 配置
 ```
+
+<details>
+<summary>从源码安装（备选）</summary>
+
+```bash
+git clone https://github.com/wysdshg/agent-flow.git
+cd agent-flow && npm install && npm run build && npm link
+```
+
+</details>
 
 把 MCP 服务加进你的 AI 工具（Trae / Claude Desktop / Cursor 等）：
 
