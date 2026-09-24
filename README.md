@@ -11,27 +11,30 @@
 ## 快速开始
 
 ```bash
+git clone https://github.com/wysdshg/agent-flow.git
+cd agent-flow
 npm install
 npm run build
-npx agent-flow init        # 在当前项目生成 .flow/flow.json + flow.html，并打印 MCP 配置
+npm link                     # 全局注册 agent-flow 命令
+npx agent-flow init          # 在你的项目里执行：生成 .flow/ 并打印 MCP 配置
 ```
 
 ### 接入 MCP 客户端（Trae / Claude Desktop / Cursor 等）
 
-`init` 会打印配置片段，本质就是：
+`init` 会打印配置片段，把其中的路径换成你本机的 clone 路径即可：
 
 ```json
 {
   "mcpServers": {
     "agent-flow": {
-      "command": "npx",
-      "args": ["-y", "agent-flow", "mcp"]
+      "command": "node",
+      "args": ["<本仓库路径>/dist/index.js", "mcp"]
     }
   }
 }
 ```
 
-> 本地开发时可用 `node <本仓库>/dist/index.js mcp` 作为 command。
+> 已 `npm link` 的话也可以用 `"command": "agent-flow", "args": ["mcp"]`。
 > 指定项目根目录：设置环境变量 `AGENT_FLOW_ROOT`（默认为进程工作目录）。
 
 之后对 agent 说"整理一下这个项目的流程"或正常开发即可，agent 会通过 14 个工具维护 `.flow/flow.json` 并渲染 `.flow/flow.html`。
