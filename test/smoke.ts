@@ -277,6 +277,7 @@ await step("startServe：随机端口/注入 EventSource/404/磁盘保持纯净"
   assert.ok(!disk.includes("EventSource")); // 注入只发生在响应内存，磁盘文件保持纯净
   const nf = await fetch(url + "nope");
   assert.equal(nf.status, 404);
+  server.closeAllConnections(); // 断开 undici keep-alive，让 server.close 立即完成
   server.close();
   fs.rmSync(stmp, { recursive: true, force: true });
 });

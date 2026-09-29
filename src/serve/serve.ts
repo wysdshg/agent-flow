@@ -91,8 +91,9 @@ export async function startServe(
   await new Promise<void>((resolve) => server.listen(port, () => resolve()));
 
   // 监听目录而非单文件，规避部分平台单文件 watch 不触发的问题
+  let watcher: fs.FSWatcher | null = null;
   try {
-    fs.watch(store.flowDir, (_event, filename) => {
+    watcher = fs.watch(store.flowDir, (_event, filename) => {
       if (filename && filename !== "flow.json") return; // filename 为 null 的平台放行
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(rerender, 300);
@@ -102,6 +103,13 @@ export async function startServe(
       "文件监听不可用（" + (e instanceof Error ? e.message : String(e)) + "），自动刷新失效，可手动刷新浏览器",
     );
   }
+
+  // 服务关闭时释放 watch 与 SSE 连接，保证进程能正常退出
+  server.on("close", () => {
+    watcher?.close();
+    for (const res of clients) res.end();
+    clients.clear();
+  });
 
   const realPort = (server.address() as { port: number }).port;
   const url = "http://localhost:" + realPort + "/";
