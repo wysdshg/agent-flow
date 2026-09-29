@@ -25,6 +25,7 @@ import { FlowError } from "../src/core/schema.js";
 import { validateGraph } from "../src/core/validate.js";
 import { layoutGraph } from "../src/layout/dagre.js";
 import { renderHtml } from "../src/render/html.js";
+import { toMermaid } from "../src/render/mermaid.js";
 
 let passed = 0;
 function step(name: string, fn: () => void): void {
@@ -174,6 +175,30 @@ step("validateGraph：正常图通过，悬空边/坏引用/深嵌套被抓", ()
   const deep = validateGraph(g);
   assert.equal(deep.ok, false);
   assert.ok(deep.issues.some((i) => i.includes("嵌套")));
+});
+
+// ---------- mermaid 导出 ----------
+step("toMermaid 生成合法 flowchart（subgraph 嵌套/classDef/边 label/id 前缀）", () => {
+  const gm = newGraph("导出测试");
+  createSubModule(gm, { name: "登录模块" });
+  addNode(gm, { moduleID: 0, nodeID: "S1", type: "start", name: "开始", description: "", state: "completed" });
+  addNode(gm, { moduleID: 0, nodeID: "M1", type: "module", name: "登录", description: "", target: 1 });
+  addNode(gm, { moduleID: 0, nodeID: "A-1", type: "process", name: "非法id", description: "" });
+  addNode(gm, { moduleID: 1, nodeID: "P1", type: "process", name: "校验", description: "", state: "in_progress" });
+  addNode(gm, { moduleID: 1, nodeID: "P2", type: "process", name: "通过", description: "" });
+  addEdge(gm, { moduleID: 0, node1: "S1", node2: "M1", text: "进入" });
+  addEdge(gm, { moduleID: 1, node1: "P1", node2: "P2", text: "通过" });
+  const mmd = toMermaid(gm);
+  assert.ok(mmd.startsWith("flowchart LR\n"));
+  assert.ok(mmd.includes("subgraph mod_0["));
+  assert.ok(mmd.includes("subgraph mod_1[登录模块]"));
+  assert.ok(mmd.includes("classDef completed"));
+  assert.ok(mmd.includes("n1_P1"));
+  assert.ok(mmd.includes("n0_A_1")); // 节点 id 非法字符替换为 _
+  assert.ok(mmd.includes("n0_S1 -->|进入| mod_1")); // 模块节点被 subgraph 取代，边指向 subgraph
+  assert.ok(mmd.includes("n1_P1 -->|通过| n1_P2"));
+  assert.ok(mmd.includes("class n0_S1 completed"));
+  assert.ok(mmd.includes("class n1_P1 in_progress"));
 });
 
 // ---------- layout + render ----------
