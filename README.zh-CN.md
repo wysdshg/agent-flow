@@ -86,6 +86,10 @@ cd agent-flow && npm install && npm run build && npm link
 
 布局全自动（dagre 从左到右），agent 只管拓扑，不管坐标。
 
+## 功能文档（`.flow/docs/`）
+
+节点可挂 `doc` 字段指向单篇 md（如 `doc: ".flow/docs/undo.md"`：为什么做/怎么实现/怎么扩展）。详情面板点「文件名 ↗」直接在 IDE 打开（配合 `agent-flow serve`）；`agent-flow validate` 会提醒还不存在的文档文件。一个功能一个文件，索引放 `.flow/docs/README.md`。
+
 ## CLI 降级通道（无 MCP 环境时）
 
 ```bash

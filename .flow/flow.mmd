@@ -24,7 +24,7 @@ subgraph mod_0[主流程图]
     n2_P2_dagre["dagre 排版"]
     n2_P2_size["节点尺寸估算"]
     n2_OLD_manual["手写坐标方案"]
-    n2_P2_export["导出 PNG"]
+    n2_P2_export["导出 PNG（查看器）"]
     n2_P2_size -->|先量尺寸| n2_P2_dagre
   end
   subgraph mod_3[HTML 渲染层]
@@ -45,6 +45,12 @@ subgraph mod_0[主流程图]
     n5_P5_test["狗粮测试"]
     n5_P5_cli -->|配规范| n5_P5_skill
   end
+  subgraph mod_6[实时预览与导出层]
+    n6_P6_serve["serve 实时预览"]
+    n6_P6_jump["跳转与功能文档"]
+    n6_P6_export["Mermaid 导出"]
+    n6_P6_serve -->|注入 __SERVE__| n6_P6_jump
+  end
   n0_S_start -->|先做地基| mod_1
   mod_1 -->|图数据| mod_2
   mod_2 -->|坐标| mod_3
@@ -52,10 +58,11 @@ subgraph mod_0[主流程图]
   mod_4 -->|补通道| mod_5
   n0_F_flowjson -->|读写| mod_1
   mod_3 -->|生成| n0_F_flowhtml
+  mod_5 -->|长出工作台| mod_6
 end
-class n0_S_start,n0_F_flowjson,n0_F_flowhtml,n1_P1_schema,n1_P1_store,n1_P1_ops,n1_P1_validate,n2_P2_dagre,n2_P2_size,n3_P3_html,n3_P3_viewer,n4_P4_server,n4_P4_err,n5_P5_cli,n5_P5_skill completed
+class n0_S_start,n0_F_flowjson,n0_F_flowhtml,n1_P1_schema,n1_P1_store,n1_P1_ops,n1_P1_validate,n2_P2_dagre,n2_P2_size,n2_P2_export,n3_P3_html,n3_P3_viewer,n4_P4_server,n4_P4_err,n5_P5_cli,n5_P5_skill,n6_P6_serve,n6_P6_jump,n6_P6_export completed
 class n5_P5_test in_progress
+class n1_J1_undo planned
 class n3_P3_compat broken
-class n2_P2_export,n3_P3_minimap to_plan
-class n1_J1_undo pending_decision
+class n3_P3_minimap to_plan
 class n2_OLD_manual deprecated

@@ -112,6 +112,10 @@ Every node carries an honest, test-backed status. The agent is instructed (via t
 
 Drag nodes to rearrange (saved in your browser, never pollutes the JSON the AI reads). Right-click-drag to box-select and move groups. If you change a node's state or delete it in the viewer, it generates a small ops JSON — **paste it back to your agent and it syncs the graph**, always re-reading the latest file first.
 
+## Feature Docs (`.flow/docs/`)
+
+Nodes can carry a `doc` field pointing to a single markdown file, e.g. `doc: ".flow/docs/undo.md"` — why it exists, how it works, how to extend it. The viewer's detail panel renders a click-to-open link: with `agent-flow serve` running it opens straight in your IDE; `agent-flow validate` warns about doc files that don't exist yet. One feature, one file; keep an index in `.flow/docs/README.md`.
+
 ## CLI Reference
 
 ```bash

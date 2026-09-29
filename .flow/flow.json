@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "agent-flow",
-  "updatedAt": "2026-09-24T09:03:37.839Z",
+  "updatedAt": "2026-09-29T12:57:22.742Z",
   "modules": {
     "0": {
       "id": "0",
@@ -92,6 +92,17 @@
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
           "updatedAt": "2026-09-24T09:03:25.943Z"
+        },
+        "M_serve": {
+          "id": "M_serve",
+          "type": "module",
+          "name": "实时预览与导出层",
+          "description": "serve/跳转/导出三件套，长在 CLI 通道上",
+          "location": "",
+          "state": "completed",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "updatedAt": "2026-09-29T12:57:22.742Z",
+          "target": "6"
         }
       },
       "edges": {
@@ -143,6 +154,13 @@
           "to": "F_flowhtml",
           "createdAt": "2026-09-24T09:03:25.943Z",
           "text": "生成"
+        },
+        "e8": {
+          "id": "e8",
+          "from": "M_cli",
+          "to": "M_serve",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "text": "长出工作台"
         }
       }
     },
@@ -197,9 +215,9 @@
           "name": "撤销功能做不做？",
           "description": "agent 误删怎么找回，等你拍板",
           "location": "",
-          "state": "pending_decision",
+          "state": "planned",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T12:26:26.659Z"
         }
       },
       "edges": {
@@ -261,12 +279,13 @@
         "P2_export": {
           "id": "P2_export",
           "type": "process",
-          "name": "导出 PNG",
+          "name": "导出 PNG（查看器）",
           "description": "把画布导出成图片贴到文档里（只是想法）",
-          "location": "",
-          "state": "to_plan",
+          "location": "src/render/html.ts pngbtn",
+          "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T12:57:22.742Z",
+          "doc": ".flow/docs/export.md"
         }
       },
       "edges": {
@@ -413,6 +432,55 @@
           "to": "P5_skill",
           "createdAt": "2026-09-24T09:03:25.943Z",
           "text": "配规范"
+        }
+      }
+    },
+    "6": {
+      "id": "6",
+      "name": "实时预览与导出层",
+      "description": "serve 实时刷新、代码/文档跳转、Mermaid 导出——把图从静态 HTML 变成活的工作台",
+      "nodes": {
+        "P6_serve": {
+          "id": "P6_serve",
+          "type": "process",
+          "name": "serve 实时预览",
+          "description": "本地 HTTP 服务：改 flow.json 后浏览器自动刷新，还带 /open 接口",
+          "location": "src/serve/serve.ts startServe()",
+          "state": "completed",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "updatedAt": "2026-09-29T12:57:22.742Z",
+          "doc": ".flow/docs/serve.md"
+        },
+        "P6_jump": {
+          "id": "P6_jump",
+          "type": "process",
+          "name": "跳转与功能文档",
+          "description": "详情面板点一下就跳 IDE 打开代码行或功能 md 文档",
+          "location": "src/render/html.ts parseLocation()",
+          "state": "completed",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "updatedAt": "2026-09-29T12:57:22.742Z",
+          "doc": ".flow/docs/ide-jump.md"
+        },
+        "P6_export": {
+          "id": "P6_export",
+          "type": "process",
+          "name": "Mermaid 导出",
+          "description": "整图转 Mermaid 文本贴进 GitHub README 自动渲染，查看器还有 PNG 下载",
+          "location": "src/render/mermaid.ts toMermaid()",
+          "state": "completed",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "updatedAt": "2026-09-29T12:57:22.742Z",
+          "doc": ".flow/docs/export.md"
+        }
+      },
+      "edges": {
+        "e1": {
+          "id": "e1",
+          "from": "P6_serve",
+          "to": "P6_jump",
+          "createdAt": "2026-09-29T12:57:22.742Z",
+          "text": "注入 __SERVE__"
         }
       }
     }
