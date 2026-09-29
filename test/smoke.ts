@@ -22,7 +22,7 @@ import {
   updateNode,
 } from "../src/core/graph-ops.js";
 import { FlowError } from "../src/core/schema.js";
-import { validateGraph, missingDocs } from "../src/core/validate.js";
+import { validateGraph, missingDocs, docIssues } from "../src/core/validate.js";
 import { layoutGraph } from "../src/layout/dagre.js";
 import { parseLocation, renderHtml } from "../src/render/html.js";
 import { toMermaid } from "../src/render/mermaid.js";
@@ -269,6 +269,34 @@ step("missingDocs 软提醒 + 渲染产物含文档/代码跳转链接", () => {
   const html = renderHtml(g, layoutGraph(g));
   assert.ok(html.includes("data-doc"), "渲染产物应含文档链接");
   assert.ok(html.includes("data-loc"), "渲染产物应含代码链接");
+});
+
+step("docIssues：缺头/状态不一致/更新滞后/completed 缺验证被抓，合规文档不报", () => {
+  fs.mkdirSync(path.join(tmp, ".flow", "docs"), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp, ".flow/docs/good.md"),
+    "> 状态: completed | 建立: 2026-01-01 | 更新: 2099-01-01 | 上次验证: 2099-01-01（npm test 通过）\n\n# 好\n",
+  );
+  fs.writeFileSync(path.join(tmp, ".flow/docs/nohead.md"), "# 没有文档头\n");
+  fs.writeFileSync(
+    path.join(tmp, ".flow/docs/noverify.md"),
+    "> 状态: completed | 建立: 2026-01-01 | 更新: 2099-01-01\n",
+  );
+  fs.writeFileSync(
+    path.join(tmp, ".flow/docs/stale.md"),
+    "> 状态: completed | 建立: 2026-01-01 | 更新: 2026-01-01 | 上次验证: 2026-01-01（旧）\n",
+  );
+  updateNode(g, { moduleID: 0, nodeID: "P1", patch: { doc: ".flow/docs/good.md" } });
+  updateNode(g, { moduleID: 0, nodeID: "S1", patch: { state: "completed", doc: ".flow/docs/noverify.md" } });
+  updateNode(g, { moduleID: 5, nodeID: "R9", patch: { doc: ".flow/docs/nohead.md" } });
+  updateNode(g, { moduleID: 5, nodeID: "D1", patch: { doc: ".flow/docs/stale.md" } });
+  const issues = docIssues(g, tmp);
+  const of = (d: string) => issues.filter((i) => i.doc === d).map((i) => i.problem).join("；");
+  assert.equal(of(".flow/docs/good.md"), "", "合规文档不应有问题");
+  assert.ok(of(".flow/docs/nohead.md").includes("文档头"), "缺文档头应被抓");
+  assert.ok(of(".flow/docs/noverify.md").includes("上次验证"), "completed 缺上次验证应被抓");
+  assert.ok(of(".flow/docs/stale.md").includes("不一致"), "文档状态 completed vs 节点 to_plan 应报不一致");
+  assert.ok(of(".flow/docs/stale.md").includes("早于图最近变更"), "更新日期早于节点 updatedAt 应报滞后");
 });
 
 step("store.saveHtml 落盘", () => {

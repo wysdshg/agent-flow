@@ -31,7 +31,7 @@ import {
   updateEdge,
   updateNode,
 } from "./core/graph-ops.js";
-import { missingDocs, validateGraph } from "./core/validate.js";
+import { docIssues, missingDocs, validateGraph } from "./core/validate.js";
 import { layoutGraph } from "./layout/dagre.js";
 import { renderHtml } from "./render/html.js";
 import { toMermaid } from "./render/mermaid.js";
@@ -207,6 +207,12 @@ async function main(): Promise<void> {
       console.error(`\n提醒：${miss.length} 个节点的功能文档文件不存在（不影响校验结果）：`);
       for (const m of miss) console.error(`  [模块 ${m.moduleID}] ${m.nodeID}（${m.name}）→ ${m.doc}`);
       console.error("在 .flow/docs/ 补齐对应 md 后，详情面板的文档链接才能打开。");
+    }
+    const dIss = docIssues(graph, store.root);
+    if (dIss.length) {
+      console.error(`\n提醒：${dIss.length} 处文档头问题（不影响校验结果）：`);
+      for (const d of dIss) console.error(`  [模块 ${d.moduleID}] ${d.nodeID} → ${d.doc}：${d.problem}`);
+      console.error("文档头格式见 SKILL「功能文档」小节。");
     }
     if (!res.ok) process.exitCode = 1;
     return;

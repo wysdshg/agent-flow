@@ -27,6 +27,83 @@ export function missingDocs(
   return out;
 }
 
+export interface DocIssue {
+  moduleID: string;
+  nodeID: string;
+  name: string;
+  doc: string;
+  problem: string;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 文档头校验（软提醒）。文档头是 md 里紧跟标题的一行引用块：
+ *   > 状态: completed | 建立: 2026-09-29 | 更新: 2026-09-30 | 上次验证: 2026-09-30（npm test 19/19）
+ * 抓四类腐烂：缺头/字段缺、状态与图不一致、更新日期早于图变更、completed 缺验证记录或验证过期（>90 天）。
+ * 一篇 md 可被多个节点共享：状态与其中任一节点一致即算匹配。
+ */
+export function docIssues(graph: FlowGraph, root: string): DocIssue[] {
+  const byDoc = new Map<
+    string,
+    { moduleID: string; nodeID: string; name: string; state: string; updatedAt: string }[]
+  >();
+  for (const [mid, mod] of Object.entries(graph.modules)) {
+    for (const n of Object.values(mod.nodes)) {
+      if (!n.doc) continue;
+      if (!byDoc.has(n.doc)) byDoc.set(n.doc, []);
+      byDoc.get(n.doc)!.push({ moduleID: mid, nodeID: n.id, name: n.name, state: n.state, updatedAt: n.updatedAt });
+    }
+  }
+
+  const out: DocIssue[] = [];
+  for (const [doc, refs] of byDoc) {
+    const abs = path.resolve(root, doc);
+    if (!fs.existsSync(abs)) continue; // 文件不存在归 missingDocs 管
+    const report = (problem: string): void => {
+      out.push({ moduleID: refs[0].moduleID, nodeID: refs[0].nodeID, name: refs[0].name, doc, problem });
+    };
+
+    const head = fs
+      .readFileSync(abs, "utf-8")
+      .split("\n")
+      .find((l) => l.startsWith("> 状态:"));
+    if (!head) {
+      report("缺文档头（紧跟标题加一行：> 状态: <7态> | 建立: YYYY-MM-DD | 更新: YYYY-MM-DD | 上次验证: YYYY-MM-DD（证据））");
+      continue;
+    }
+    const st = head.match(/状态:\s*([a-z_]+)/)?.[1];
+    const created = head.match(/建立:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+    const updated = head.match(/更新:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+    const verified = head.match(/上次验证:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+
+    if (!st || !(STATES as readonly string[]).includes(st)) {
+      report(`文档头状态 "${st ?? "缺失"}" 非法，只能是 ${STATES.join("/")}`);
+      continue;
+    }
+    if (!created || !updated) {
+      report("文档头缺建立/更新日期");
+      continue;
+    }
+    if (!refs.some((r) => r.state === st)) {
+      const nodeStates = [...new Set(refs.map((r) => r.state))].join("/");
+      report(`文档状态 ${st} 与图节点状态（${nodeStates}）不一致，重跑验证后按实况改`);
+    }
+    const latestOf = refs.map((r) => r.updatedAt.slice(0, 10)).sort().slice(-1)[0] ?? "";
+    if (latestOf && updated < latestOf) {
+      report(`文档更新时间（${updated}）早于图最近变更（${latestOf}），图改了文档没跟上`);
+    }
+    if (st === "completed") {
+      if (!verified) {
+        report("状态 completed 但缺上次验证记录（格式：上次验证: YYYY-MM-DD（测试命令/用户确认等证据））");
+      } else if (Date.now() - Date.parse(verified) > 90 * DAY_MS) {
+        report(`上次验证是 ${verified}（超过 90 天），久未验证的功能状态存疑，建议重验后再信`);
+      }
+    }
+  }
+  return out;
+}
+
 export function validateGraph(graph: FlowGraph, moduleID?: number | string): ValidateResult {
   const issues: string[] = [];
   const scope = moduleID !== undefined ? [String(moduleID)] : Object.keys(graph.modules);

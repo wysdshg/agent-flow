@@ -20,7 +20,7 @@ import {
   updateEdge,
   updateNode,
 } from "../core/graph-ops.js";
-import { missingDocs, validateGraph } from "../core/validate.js";
+import { docIssues, missingDocs, validateGraph } from "../core/validate.js";
 import { layoutGraph } from "../layout/dagre.js";
 import { renderHtml } from "../render/html.js";
 import { FlowError, addNodeSchema, tableFieldSchema } from "../core/schema.js";
@@ -387,7 +387,17 @@ export async function startMcp(): Promise<void> {
         const graph = read();
         const res = validateGraph(graph, args?.moduleID);
         const miss = missingDocs(graph, store.root);
-        return ok({ ...res, docWarnings: miss, ...(miss.length ? { hint: `有 ${miss.length} 个节点的功能文档文件不存在，建议按 SKILL 模板补齐 ${miss.map((m) => m.doc).join(", ")}` } : {}) });
+        const dIss = docIssues(graph, store.root);
+        const hint =
+          miss.length
+            ? `有 ${miss.length} 个节点的功能文档文件不存在，建议按 SKILL 模板补齐 ${miss.map((m) => m.doc).join(", ")}`
+            : dIss.length
+              ? `有 ${dIss.length} 处文档头问题，按 SKILL「功能文档」小节修正：${dIss
+                  .slice(0, 5)
+                  .map((d) => `${d.doc}（${d.problem}）`)
+                  .join("；")}`
+              : undefined;
+        return ok({ ...res, docWarnings: miss, docHeaderIssues: dIss, ...(hint ? { hint } : {}) });
       } catch (e) {
         return fail(e);
       }
