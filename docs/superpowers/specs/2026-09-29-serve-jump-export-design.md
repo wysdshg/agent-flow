@@ -48,7 +48,7 @@ agent-flow serve [--port 3457] [--no-open]
 ### 行为
 - `GET /`：返回 `.flow/flow.html` 内容，**响应时注入**一段 `<script>`（`EventSource("/events")` 收到消息后 `location.reload()`）。注入只发生在内存中的响应里，**磁盘上的 flow.html 保持纯净**——不用 serve、双击打开照常可用。替换锚点用 `"</body>"`（flow.json 数据里的 `<` 已被转义为 `\u003c`，VIEWER_JS 无 `</body>` 字样，全文仅结尾一处，安全）。
 - `GET /events`：SSE 流（`Content-Type: text/event-stream`，心跳注释每 25s 防代理断连）。
-- 监听：`fs.watch(store.flowFile)`，变更后防抖 300ms 执行 `load → layoutGraph → renderHtml → saveHtml`，然后向所有 SSE 连接广播 reload。
+- 监听：`fs.watch(store.flowDir)`（监听目录而非单文件，规避部分平台单文件 watch 不触发的问题），收到事件且文件名为 `flow.json` 后防抖 300ms 执行 `load → layoutGraph → renderHtml → saveHtml`，然后向所有 SSE 连接广播 reload。
 - 启动：打印 URL 与「agent 改图后浏览器会自动刷新」提示；自动拉起浏览器（linux `xdg-open` / darwin `open` / win `start`，`spawn` + `stdio: ignore` + `detached`，失败仅 console 提示，不影响服务）。
 - 端口被占用：报错并提示 `--port` 换端口，退出码 1。
 - 布局坐标的 localStorage 按 `DATA.hash` 隔离（既有机制），图一变 hash 变，刷新后自动用新自动布局，无脏坐标问题。
@@ -94,7 +94,7 @@ agent-flow serve [--port 3457] [--no-open]
 
 ## 7. 错误处理
 
-- serve：`fs.watch` 在部分平台对单文件监听不稳定，监听对象用 `.flow` 目录（含 flow.json），收到事件后校验变更文件名再防抖；watch 抛错捕获后降级为「轮询 flow.json mtime 每 2s」不可取——保持 watch 失败即打印警告并继续提供静态服务（用户可手动刷新，功能不劣化于现状）。
+- serve：`fs.watch` 已按目录监听规避单文件 watch 不稳定的问题；若 watch 本身抛错，捕获后打印警告并继续提供静态服务（用户可手动刷新，功能不劣化于现状）。
 - `parseLocation`：任何一段解析失败都静默跳过，不影响整体渲染。
 - PNG 导出在旧浏览器 `toBlob` 不可用时 toast 提示「请用现代浏览器」。
 - export：图未初始化时 `store.load()` 既有行为自动建空图，导出结果只含主图空 subgraph，属正常。
