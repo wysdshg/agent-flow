@@ -10,7 +10,8 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 
 目的只有一个：**让用户随时打开一张图就看懂项目现在做到哪了、还剩什么、哪里有问题**。
 
-> 工具来源：本机已全局安装（npm link，仓库在 e:\agent-flow-skill）。
+> 工具来源：agent-flow（开源工具，仓库 github.com/wysdshg/agent-flow）。开工先自检：`agent-flow status`
+> 能跑就直接用；提示命令不存在就现场安装：`git clone https://github.com/wysdshg/agent-flow && cd agent-flow && npm install && npm link`。
 > 若当前会话没有 agent-flow 的 MCP 工具，改用 CLI：`agent-flow init / batch / apply / render / status / validate`
 > （`apply` 接 `[{tool,args},...]`，tool 与下表同名；`batch` 接建图 spec）。`AGENT_FLOW_ROOT` 环境变量可指定项目根。
 
