@@ -12,8 +12,8 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 
 > 工具来源：agent-flow（开源工具，仓库 github.com/wysdshg/agent-flow）。开工先自检：`agent-flow status`
 > 能跑就直接用；提示命令不存在就现场安装：`git clone https://github.com/wysdshg/agent-flow && cd agent-flow && npm install && npm link`。
-> 若当前会话没有 agent-flow 的 MCP 工具，改用 CLI：`agent-flow init / batch / apply / render / status / validate`
-> （`apply` 接 `[{tool,args},...]`，tool 与下表同名；`batch` 接建图 spec）。`AGENT_FLOW_ROOT` 环境变量可指定项目根。
+> 若当前会话没有 agent-flow 的 MCP 工具，改用 CLI：`agent-flow init / batch / apply / render / status / validate / serve / export`
+> （`apply` 接 `[{tool,args},...]`，tool 与下表同名；`batch` 接建图 spec；`serve` 起本地实时预览，改图后浏览器自动刷新；`export` 导出 Mermaid 文本可贴 README）。`AGENT_FLOW_ROOT` 环境变量可指定项目根。
 
 ## 铁律（必须遵守）
 
@@ -43,7 +43,8 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 开工：  get_project_status → （需要细节时）read_graph moduleID=X
 干活中：add_node / n2n / add_table ...（新想法 to_plan，动手了改 in_progress）
 收工：  update_node 把写完测过的节点改 completed（出 bug 改 broken）
-        → validate_graph → render_html → 告诉用户"图已更新，打开 .flow/flow.html 查看"
+        → validate_graph → render_html → 告诉用户"图已更新，打开 .flow/flow.html 查看
+        （若用户跑过 agent-flow serve，浏览器会自动刷新，无需手动重开）"
 ```
 
 ## 工具速查（14 个）

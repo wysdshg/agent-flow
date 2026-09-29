@@ -93,6 +93,8 @@ agent-flow init                 # 初始化 + 打印 MCP 配置
 agent-flow batch spec.json      # 一次性建图（整理旧项目利器），自动渲染
 agent-flow apply ops.json       # 依次执行 [{"tool":"add_node","args":{...}},...]
 agent-flow render               # 重新布局并刷新 flow.html
+agent-flow serve                # 本地实时预览：agent 改图后浏览器自动刷新（默认端口 3457）
+agent-flow export               # 导出 Mermaid 文本（默认 .flow/flow.mmd，可粘贴进 README）
 agent-flow status               # 进度总览（JSON）
 agent-flow validate             # 校验图合法性
 agent-flow mcp                  # 启动 MCP stdio 服务

@@ -119,6 +119,8 @@ agent-flow init                 # init + print MCP config
 agent-flow batch spec.json      # one-shot graph build (great for retrofitting old projects)
 agent-flow apply ops.json       # run [{"tool":"add_node","args":{...}}, ...]
 agent-flow render               # re-layout + refresh flow.html
+agent-flow serve                # live preview: auto-reload browser when flow.json changes
+agent-flow export               # export Mermaid text (.flow/flow.mmd) for README/GitHub
 agent-flow status               # progress overview (JSON)
 agent-flow validate             # graph sanity check
 agent-flow mcp                  # start the MCP stdio server
