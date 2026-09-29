@@ -173,6 +173,7 @@ var curDetail=null;
 function showOps(ops){var txt=JSON.stringify(ops);var box=document.getElementById("opsbox");var cp=document.getElementById("opscopy");if(!box)return;box.textContent=txt;box.style.display="block";cp.style.display="block";
 if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast("指令已复制，发给 AI 即可执行");},function(){});}}
 function showDetail(n){curDetail=n;var d=document.getElementById("detail");var h='<span class="close" data-close="1">×</span><h3>'+esc(n.name)+"</h3><div>"+stateBadge(n.state)+" <span style='color:#8a93a3;font-size:12px;margin-left:6px'>"+esc(TYPE_NAMES[n.type]||n.type)+"</span></div>";
+if(n.doc)h+=row("文档",'<a class="copy" data-doc="'+esc(n.doc)+'" title="打开功能文档">'+esc(fileName(n.doc))+" ↗</a>");
 h+=row("位置",n.location?locRow(n.location,n.locLinks):"<span style='color:#b6bdc9'>未填写</span>");
 h+=row("说明",n.description?esc(n.description):"<span style='color:#b6bdc9'>未填写</span>");
 if(n.target&&MODS[n.target])h+=row("子图",'<a class="copy" data-open="'+esc(n.target)+'">进入 '+esc(MODS[n.target].name)+" →</a>");
@@ -243,8 +244,8 @@ if(opb&&curDetail){if(opb.getAttribute("data-op")==="state"){var ssv=document.ge
 else{showOps([{tool:"delete_node",args:{moduleID:cur,nodeID:curDetail.id}}]);}return;}
 var cpo=ev.target.closest("[data-copyops]");
 if(cpo){var ob=document.getElementById("opsbox");if(ob&&ob.textContent){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ob.textContent).then(function(){toast("指令已复制");},function(){toast("复制失败，请手动选择");});}else{toast("浏览器不支持一键复制，请手动选择");}}return;}
-var lc=ev.target.closest("[data-loc]");
-if(lc){var lp=lc.getAttribute("data-loc");var ll=lc.getAttribute("data-line");
+var lc=ev.target.closest("[data-loc],[data-doc]");
+if(lc){var lp=lc.getAttribute("data-loc")||lc.getAttribute("data-doc");var ll=lc.getAttribute("data-line")||"";
 if(window.__SERVE__){fetch("/open?path="+encodeURIComponent(lp)+(ll?("&line="+ll):"")).then(function(r){if(r.ok){toast("已发送到 IDE"+(ll?"（第 "+ll+" 行）":""));}else{toast("IDE 打开失败（"+r.status+"）");}}).catch(function(){toast("IDE 打开请求失败");});}
 else{window.open("vscode://file/"+encodeURIComponent(lp)+(ll?":"+ll:""),"_blank");}
 return;}
@@ -372,6 +373,7 @@ interface VNode {
   name: string;
   description: string;
   location: string;
+  doc?: string;
   state: string;
   inputs?: string[];
   outputs?: string[];
@@ -427,6 +429,7 @@ function buildViewData(graph: FlowGraph, layout: LayoutResult, root: string) {
           const locs = parseLocation(n.location, root);
           if (locs.length) v.locLinks = locs;
         }
+        if (n.doc) v.doc = n.doc;
         return v;
       });
       const edges: VEdge[] = Object.values(m.edges).map((e) => {

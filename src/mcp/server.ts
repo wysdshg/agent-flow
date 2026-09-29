@@ -20,7 +20,7 @@ import {
   updateEdge,
   updateNode,
 } from "../core/graph-ops.js";
-import { validateGraph } from "../core/validate.js";
+import { missingDocs, validateGraph } from "../core/validate.js";
 import { layoutGraph } from "../layout/dagre.js";
 import { renderHtml } from "../render/html.js";
 import { FlowError, addNodeSchema, tableFieldSchema } from "../core/schema.js";
@@ -379,12 +379,15 @@ export async function startMcp(): Promise<void> {
     {
       title: "校验流程图",
       description:
-        "检查图是否合法：节点/连线 ID、悬空连线、非法 state、子模块引用、表绑定、嵌套深度。每次动图之后调用。",
+        "检查图是否合法：节点/连线 ID、悬空连线、非法 state、子模块引用、表绑定、嵌套深度。每次动图之后调用。同时返回 docWarnings：挂了 doc 但文档文件不存在的节点清单。",
       inputSchema: { moduleID: z.number().int().min(0).optional().describe("只校验某个模块，缺省校验全图") },
     },
     async (args) => {
       try {
-        return ok(validateGraph(read(), args.moduleID));
+        const graph = read();
+        const res = validateGraph(graph, args?.moduleID);
+        const miss = missingDocs(graph, store.root);
+        return ok({ ...res, docWarnings: miss, ...(miss.length ? { hint: `有 ${miss.length} 个节点的功能文档文件不存在，建议按 SKILL 模板补齐 ${miss.map((m) => m.doc).join(", ")}` } : {}) });
       } catch (e) {
         return fail(e);
       }

@@ -1,12 +1,30 @@
 /**
  * 图校验：ID 重复、悬空连线、非法 state/type、子模块引用、database 绑定、嵌套深度。
  */
+import fs from "node:fs";
+import path from "node:path";
 import { FlowGraph, NODE_TYPES, STATES } from "./schema.js";
 
 export interface ValidateResult {
   ok: boolean;
   issueCount: number;
   issues: string[];
+}
+
+/** 软提醒（不算校验错误）：节点挂了 doc 但文档文件不存在，提示 AI/用户补文档 */
+export function missingDocs(
+  graph: FlowGraph,
+  root: string,
+): { moduleID: string; nodeID: string; name: string; doc: string }[] {
+  const out: { moduleID: string; nodeID: string; name: string; doc: string }[] = [];
+  for (const [mid, mod] of Object.entries(graph.modules)) {
+    for (const n of Object.values(mod.nodes)) {
+      if (n.doc && !fs.existsSync(path.resolve(root, n.doc))) {
+        out.push({ moduleID: mid, nodeID: n.id, name: n.name, doc: n.doc });
+      }
+    }
+  }
+  return out;
 }
 
 export function validateGraph(graph: FlowGraph, moduleID?: number | string): ValidateResult {

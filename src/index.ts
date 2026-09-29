@@ -31,7 +31,7 @@ import {
   updateEdge,
   updateNode,
 } from "./core/graph-ops.js";
-import { validateGraph } from "./core/validate.js";
+import { missingDocs, validateGraph } from "./core/validate.js";
 import { layoutGraph } from "./layout/dagre.js";
 import { renderHtml } from "./render/html.js";
 import { toMermaid } from "./render/mermaid.js";
@@ -199,8 +199,15 @@ async function main(): Promise<void> {
   }
 
   if (cmd === "validate") {
-    const res = validateGraph(store.load());
+    const graph = store.load();
+    const res = validateGraph(graph);
     console.log(JSON.stringify(res, null, 2));
+    const miss = missingDocs(graph, store.root);
+    if (miss.length) {
+      console.error(`\n提醒：${miss.length} 个节点的功能文档文件不存在（不影响校验结果）：`);
+      for (const m of miss) console.error(`  [模块 ${m.moduleID}] ${m.nodeID}（${m.name}）→ ${m.doc}`);
+      console.error("在 .flow/docs/ 补齐对应 md 后，详情面板的文档链接才能打开。");
+    }
     if (!res.ok) process.exitCode = 1;
     return;
   }

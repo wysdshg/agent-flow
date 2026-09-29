@@ -22,7 +22,7 @@ import {
   updateNode,
 } from "../src/core/graph-ops.js";
 import { FlowError } from "../src/core/schema.js";
-import { validateGraph } from "../src/core/validate.js";
+import { validateGraph, missingDocs } from "../src/core/validate.js";
 import { layoutGraph } from "../src/layout/dagre.js";
 import { parseLocation, renderHtml } from "../src/render/html.js";
 import { toMermaid } from "../src/render/mermaid.js";
@@ -257,6 +257,18 @@ step("store.save 写盘可回读", () => {
   store.save(graph);
   const again = JSON.parse(fs.readFileSync(store.flowFile, "utf-8"));
   assert.ok(again.modules["1"] && again.modules["1"].nodes["T1"]);
+});
+
+step("missingDocs 软提醒 + 渲染产物含文档/代码跳转链接", () => {
+  updateNode(g, { moduleID: 0, nodeID: "P1", patch: { doc: ".flow/docs/no-such.md" } });
+  fs.writeFileSync(path.join(tmp, "exists.md"), "# x");
+  updateNode(g, { moduleID: 0, nodeID: "S1", patch: { doc: "exists.md" } });
+  const miss = missingDocs(g, tmp);
+  assert.equal(miss.length, 1);
+  assert.equal(miss[0].nodeID, "P1");
+  const html = renderHtml(g, layoutGraph(g));
+  assert.ok(html.includes("data-doc"), "渲染产物应含文档链接");
+  assert.ok(html.includes("data-loc"), "渲染产物应含代码链接");
 });
 
 step("store.saveHtml 落盘", () => {
