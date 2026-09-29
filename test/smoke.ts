@@ -26,10 +26,11 @@ import { validateGraph } from "../src/core/validate.js";
 import { layoutGraph } from "../src/layout/dagre.js";
 import { parseLocation, renderHtml } from "../src/render/html.js";
 import { toMermaid } from "../src/render/mermaid.js";
+import { startServe } from "../src/serve/serve.js";
 
 let passed = 0;
-function step(name: string, fn: () => void): void {
-  fn();
+async function step(name: string, fn: () => void | Promise<void>): Promise<void> {
+  await fn();
   passed++;
   console.log(`  ✓ ${name}`);
 }
@@ -256,6 +257,28 @@ step("store.saveHtml 落盘", () => {
   store.saveHtml(renderHtml(graph, layoutGraph(graph)));
   const html = fs.readFileSync(store.htmlFile, "utf-8");
   assert.ok(html.includes("</html>"));
+});
+
+// ---------- serve（真实 HTTP，随机端口） ----------
+await step("startServe：随机端口/注入 EventSource/404/磁盘保持纯净", async () => {
+  const stmp = fs.mkdtempSync(path.join(os.tmpdir(), "agent-flow-serve-"));
+  const sstore = new FlowStore(stmp);
+  sstore.load(); // 生成 flow.json，flow.html 由 startServe 内部首次渲染
+  const { server, port, url } = await startServe(sstore, { port: 0, open: false });
+  assert.ok(port > 0);
+  const res = await fetch(url); // url 本身以 / 结尾
+  assert.equal(res.status, 200);
+  const text = await res.text();
+  assert.ok(text.includes("var DATA="));
+  assert.ok(text.includes("EventSource"));
+  assert.ok(text.includes('"root":"'));
+  const disk = fs.readFileSync(sstore.htmlFile, "utf-8");
+  assert.ok(disk.includes("var DATA="));
+  assert.ok(!disk.includes("EventSource")); // 注入只发生在响应内存，磁盘文件保持纯净
+  const nf = await fetch(url + "nope");
+  assert.equal(nf.status, 404);
+  server.close();
+  fs.rmSync(stmp, { recursive: true, force: true });
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });
