@@ -116,6 +116,14 @@ Drag nodes to rearrange (saved in your browser, never pollutes the JSON the AI r
 
 Nodes can carry a `doc` field pointing to a single markdown file, e.g. `doc: ".flow/docs/undo.md"` — why it exists, how it works, how to extend it. The viewer's detail panel renders a click-to-open link: with `agent-flow serve` running it opens straight in your IDE; `agent-flow validate` warns about doc files that don't exist yet. One feature, one file; keep an index in `.flow/docs/README.md`.
 
+Every doc carries a one-line status header, and the validator enforces it:
+
+```markdown
+> 状态: completed | 建立: 2026-09-24 | 更新: 2026-09-30 | 上次验证: 2026-09-29（npm test 20/20）
+```
+
+`completed` requires verification evidence (test command or user confirmation) — no evidence, no green. `validate` catches four kinds of doc rot: missing headers, status drift between doc and graph, docs older than graph changes, and verifications older than 90 days. Docs grow with the feature: the *why/what/how* sections are written when work starts (while the design intent is fresh), code locations and evidence land before it's marked done.
+
 ## CLI Reference
 
 ```bash

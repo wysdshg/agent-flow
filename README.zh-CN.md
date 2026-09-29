@@ -90,6 +90,14 @@ cd agent-flow && npm install && npm run build && npm link
 
 节点可挂 `doc` 字段指向单篇 md（如 `doc: ".flow/docs/undo.md"`：为什么做/怎么实现/怎么扩展）。详情面板点「文件名 ↗」直接在 IDE 打开（配合 `agent-flow serve`）；`agent-flow validate` 会提醒还不存在的文档文件。一个功能一个文件，索引放 `.flow/docs/README.md`。
 
+每篇文档首行带状态文档头，校验器强制执行：
+
+```markdown
+> 状态: completed | 建立: 2026-09-24 | 更新: 2026-09-30 | 上次验证: 2026-09-29（npm test 20/20）
+```
+
+`completed` 必须有验证证据（测试命令或用户确认），没证据不许标绿。validate 抓四类文档腐烂：缺文档头、文档状态与图不一致、文档更新早于图变更、验证超 90 天。文档跟功能分段长成：动手时先写「为什么做/解决什么/怎么实现」，标 completed 前补「代码位置/验证证据/怎么扩展」——杜绝事后补写的流水账。
+
 ## CLI 降级通道（无 MCP 环境时）
 
 ```bash
