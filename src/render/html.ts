@@ -244,7 +244,10 @@ else{showOps([{tool:"delete_node",args:{moduleID:cur,nodeID:curDetail.id}}]);}re
 var cpo=ev.target.closest("[data-copyops]");
 if(cpo){var ob=document.getElementById("opsbox");if(ob&&ob.textContent){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ob.textContent).then(function(){toast("指令已复制");},function(){toast("复制失败，请手动选择");});}else{toast("浏览器不支持一键复制，请手动选择");}}return;}
 var lc=ev.target.closest("[data-loc]");
-if(lc){var lp=lc.getAttribute("data-loc");var ll=lc.getAttribute("data-line");window.open("vscode://file/"+encodeURIComponent(lp)+(ll?":"+ll:""),"_blank");return;}
+if(lc){var lp=lc.getAttribute("data-loc");var ll=lc.getAttribute("data-line");
+if(window.__SERVE__){fetch("/open?path="+encodeURIComponent(lp)+(ll?("&line="+ll):"")).then(function(r){if(r.ok){toast("已发送到 IDE"+(ll?"（第 "+ll+" 行）":""));}else{toast("IDE 打开失败（"+r.status+"）");}}).catch(function(){toast("IDE 打开请求失败");});}
+else{window.open("vscode://file/"+encodeURIComponent(lp)+(ll?":"+ll:""),"_blank");}
+return;}
 var cp=ev.target.closest("[data-copy]");
 if(cp){var txt=cp.getAttribute("data-copy");
 if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast("已复制："+txt);},function(){toast("复制失败，请手动选择文本");});}

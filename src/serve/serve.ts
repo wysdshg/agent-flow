@@ -7,6 +7,7 @@
  */
 import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { FlowStore } from "../core/store.js";
 import { layoutGraph } from "../layout/dagre.js";
@@ -20,7 +21,45 @@ export interface ServeOptions {
 }
 
 const RELOAD_SCRIPT =
-  '<script>(function(){var es=new EventSource("/events");es.onmessage=function(){location.reload();};})();</script>';
+  '<script>window.__SERVE__=1;(function(){var es=new EventSource("/events");es.onmessage=function(){location.reload();};})();</script>';
+
+/**
+ * 依次尝试常见 IDE CLI（PATH 里的命令名 + Linux 常见安装位置的绝对路径），
+ * 第一个成功拉起的生效；全部失败再用系统默认程序打开文件兜底。
+ * 用 `-g file:line` 让 IDE 直接定位到行。响应在首个成功事件后写出。
+ */
+function openInIde(abs: string, line: string, res: http.ServerResponse): void {
+  const cands = [
+    "trae",
+    "trae-cn",
+    "code",
+    "cursor",
+    "windsurf",
+    "codium",
+    "/usr/share/trae-cn/trae-cn",
+    "/usr/share/trae/trae",
+    "/usr/share/code/code",
+    "/opt/Trae/trae",
+  ];
+  const tryOne = (i: number): void => {
+    if (i >= cands.length) {
+      const fb = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+      const fa = process.platform === "win32" ? ["/c", "start", "", abs] : [abs];
+      const f = spawn(fb, fa, { stdio: "ignore", detached: true });
+      f.on("error", () => {});
+      f.unref();
+      res.end("opened-fallback");
+      return;
+    }
+    const ch = spawn(cands[i], line ? ["-g", abs + ":" + line] : [abs], { stdio: "ignore", detached: true });
+    ch.on("error", () => tryOne(i + 1));
+    ch.on("spawn", () => {
+      ch.unref();
+      res.end("opened");
+    });
+  };
+  tryOne(0);
+}
 
 export async function startServe(
   store: FlowStore,
@@ -73,6 +112,27 @@ export async function startServe(
         res.writeHead(500);
         res.end("flow.html 读取失败，请运行 agent-flow render");
       }
+      return;
+    }
+    if (url === "/open") {
+      // 本地 IDE 打开接口：浏览器内点击跳转链接时调用（webview 里 vscode:// 等协议不可靠）
+      const u = new URL(req.url || "/open", "http://localhost");
+      const p = u.searchParams.get("path") || "";
+      const line = (u.searchParams.get("line") || "").replace(/\D/g, "");
+      const abs = path.resolve(p);
+      const root = path.resolve(store.root);
+      if (!(abs === root || abs.startsWith(root + path.sep))) {
+        res.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("路径超出项目根目录，拒绝打开");
+        return;
+      }
+      if (!fs.existsSync(abs)) {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("文件不存在：" + abs);
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+      openInIde(abs, line, res);
       return;
     }
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
