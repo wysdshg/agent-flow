@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "agent-flow",
-  "updatedAt": "2026-09-29T12:57:22.742Z",
+  "updatedAt": "2026-09-29T14:17:08.102Z",
   "modules": {
     "0": {
       "id": "0",
@@ -177,7 +177,8 @@
           "location": "src/core/schema.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.900Z",
+          "doc": ".flow/docs/core-data.md"
         },
         "P1_store": {
           "id": "P1_store",
@@ -187,7 +188,8 @@
           "location": "src/core/store.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/core-data.md"
         },
         "P1_ops": {
           "id": "P1_ops",
@@ -197,7 +199,8 @@
           "location": "src/core/graph-ops.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/core-data.md"
         },
         "P1_validate": {
           "id": "P1_validate",
@@ -207,7 +210,8 @@
           "location": "src/core/validate.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/core-data.md"
         },
         "J1_undo": {
           "id": "J1_undo",
@@ -217,7 +221,8 @@
           "location": "",
           "state": "planned",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-29T12:26:26.659Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/undo.md"
         }
       },
       "edges": {
@@ -254,7 +259,8 @@
           "location": "src/layout/dagre.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/layout.md"
         },
         "P2_size": {
           "id": "P2_size",
@@ -264,7 +270,8 @@
           "location": "src/layout/dagre.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/layout.md"
         },
         "OLD_manual": {
           "id": "OLD_manual",
@@ -311,7 +318,8 @@
           "location": "src/render/html.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/render-html.md"
         },
         "P3_viewer": {
           "id": "P3_viewer",
@@ -321,7 +329,8 @@
           "location": "src/render/html.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:37.837Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/render-html.md"
         },
         "P3_compat": {
           "id": "P3_compat",
@@ -367,7 +376,8 @@
           "location": "src/mcp/server.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/mcp-server.md"
         },
         "P4_err": {
           "id": "P4_err",
@@ -377,7 +387,8 @@
           "location": "src/mcp/server.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/mcp-server.md"
         }
       },
       "edges": {
@@ -402,7 +413,8 @@
           "location": "src/index.ts",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.901Z",
+          "doc": ".flow/docs/cli.md"
         },
         "P5_skill": {
           "id": "P5_skill",
@@ -412,7 +424,8 @@
           "location": "skill/SKILL.md",
           "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T13:11:33.902Z",
+          "doc": ".flow/docs/skill.md"
         },
         "P5_test": {
           "id": "P5_test",
@@ -420,9 +433,10 @@
           "name": "狗粮测试",
           "description": "用本工具给自己建图并验证（就是你现在看的这张图）",
           "location": "test/smoke.ts",
-          "state": "in_progress",
+          "state": "completed",
           "createdAt": "2026-09-24T09:03:25.943Z",
-          "updatedAt": "2026-09-24T09:03:25.943Z"
+          "updatedAt": "2026-09-29T14:17:08.101Z",
+          "doc": ".flow/docs/testing.md"
         }
       },
       "edges": {
