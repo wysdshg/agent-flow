@@ -23,8 +23,8 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,"Segoe UI",
 #crumb .cur{font-weight:600}
 #rightbar{display:flex;gap:8px;align-items:center;pointer-events:auto;flex-wrap:wrap;justify-content:flex-end}
 #stats{padding:7px 12px;font-size:12px;color:#4b5563;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-#fitbtn{cursor:pointer;border:1px solid #e2e5ea;background:#fff;border-radius:10px;padding:7px 12px;font-size:12px;color:#4b5563}
-#fitbtn:hover{background:#f2f4f7}
+#fitbtn,#resetbtn,#mmdbtn,#pngbtn{cursor:pointer;border:1px solid #e2e5ea;background:#fff;border-radius:10px;padding:7px 12px;font-size:12px;color:#4b5563}
+#fitbtn:hover,#resetbtn:hover,#mmdbtn:hover,#pngbtn:hover{background:#f2f4f7}
 #hint{padding:7px 12px;font-size:12px;color:#8a93a3}
 #legend{position:fixed;left:16px;bottom:16px;background:#fff;border:1px solid #e2e5ea;border-radius:10px;padding:8px 12px;font-size:12px;color:#4b5563;display:flex;gap:12px;flex-wrap:wrap;max-width:72vw;box-shadow:0 1px 4px rgba(20,30,50,.08);pointer-events:none}
 #detail{position:fixed;top:56px;right:16px;width:360px;max-height:calc(100vh - 130px);overflow:auto;background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:14px 16px;font-size:13px;color:#1f2430;box-shadow:0 6px 20px rgba(20,30,50,.12);display:none;line-height:1.65}
@@ -269,6 +269,29 @@ if(n&&n.type==="module"&&n.target&&MODS[n.target]){if(stack.indexOf(cur)<0)stack
 document.getElementById("fitbtn").addEventListener("click",function(){fit();});
 document.getElementById("resetbtn").addEventListener("click",function(){clearPosAll();DATA.modules.forEach(function(m){m.nodes.forEach(function(n){n.x=n.bx;n.y=n.by;});});renderModule(cur);toast("已恢复自动布局");});
 
+document.getElementById("mmdbtn").addEventListener("click",function(){
+var txt=DATA.mermaid||"";
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast("Mermaid 已复制，可粘贴进 README");},function(){toast("复制失败，请手动选择");});}
+else{toast("浏览器不支持一键复制");}});
+
+document.getElementById("pngbtn").addEventListener("click",function(){
+var src=document.getElementById("cv");
+var clone=src.cloneNode(true);
+var sb=clone.querySelector("#selbox");if(sb&&sb.parentNode)sb.parentNode.removeChild(sb);
+var marks=clone.querySelectorAll(".dragged,.selected");for(var i=0;i<marks.length;i++){marks[i].classList.remove("dragged");marks[i].classList.remove("selected");}
+var w=Math.max(1,Math.round(vb.w)),h=Math.max(1,Math.round(vb.h));
+clone.setAttribute("viewBox",vb.x+" "+vb.y+" "+vb.w+" "+vb.h);
+clone.setAttribute("width",w);clone.setAttribute("height",h);
+clone.setAttribute("font-family","system-ui,'Segoe UI','Microsoft YaHei',sans-serif");
+var xml=new XMLSerializer().serializeToString(clone);
+var img=new Image();
+img.onload=function(){var c=document.createElement("canvas");c.width=w*2;c.height=h*2;var ctx=c.getContext("2d");if(!ctx){toast("PNG 导出失败");return;}
+ctx.fillStyle="#f5f6f8";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+if(c.toBlob){c.toBlob(function(b){if(!b){toast("PNG 导出失败");return;}var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="flow.png";a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},2000);toast("PNG 已下载");},"image/png");}
+else{toast("当前浏览器不支持 PNG 导出，请用现代浏览器");}};
+img.onerror=function(){toast("PNG 导出失败");};
+img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(xml);});
+
 (function initLegend(){var h="";STATE_ORDER.forEach(function(s){h+='<span><span class="dot" style="background:'+COLORS[s]+'"></span>'+LABELS[s]+"</span>";});document.getElementById("legend").innerHTML=h;})();
 
 var HP={};location.hash.replace("#","").split("&").forEach(function(p){var kv=p.split("=");if(kv[0])HP[kv[0]]=kv[1];});
@@ -302,6 +325,8 @@ __MARKERS__
     <div id="hint" class="panel">滚轮缩放 · 左键拖节点/平移 · 右键框选 · 拖选中节点整组平移 · 布局自动保存 · 双击模块进子图</div>
     <button id="fitbtn">适应画布</button>
     <button id="resetbtn">重置布局</button>
+    <button id="mmdbtn">复制 Mermaid</button>
+    <button id="pngbtn">下载 PNG</button>
     <div id="stats" class="panel"></div>
   </div>
 </div>
