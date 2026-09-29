@@ -83,6 +83,8 @@ export interface FlowNode {
   description: string;
   /** 代码/文档定位，多文件用分号分隔，如 "src/render/html.ts; README.md 20-50行" */
   location: string;
+  /** 功能设计文档（.flow/docs/ 下单篇 md 的项目相对路径），详情面板可一键打开 */
+  doc?: string;
   state: State;
   /** 输入端口名列表（左侧） */
   inputs?: string[];
@@ -146,6 +148,10 @@ export const addNodeSchema = {
     .describe(
       '代码/文档定位，如 "src/core/store.ts loadStore()" 或 "README.md 20-50行"，多文件用分号分隔；还没实现可填 ""',
     )
+    .optional(),
+  doc: z
+    .string()
+    .describe("功能设计文档路径（.flow/docs/<功能名>.md），说清为什么做/怎么实现/怎么扩展；建功能节点时同步创建并挂上")
     .optional(),
   state: stateSchema.describe("节点状态").optional(),
   inputs: z.array(z.string()).describe("输入端口名列表（仅 module/llm/tool_call/agent/assemble）").optional(),

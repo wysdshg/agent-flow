@@ -59,6 +59,7 @@ export interface AddNodeArgs {
   name: string;
   description?: string;
   location?: string;
+  doc?: string;
   state?: string;
   inputs?: string[];
   outputs?: string[];
@@ -87,6 +88,7 @@ export function addNode(graph: FlowGraph, args: AddNodeArgs): FlowNode {
   };
   if (args.inputs?.length) node.inputs = args.inputs;
   if (args.outputs?.length) node.outputs = args.outputs;
+  if (args.doc) node.doc = args.doc;
   if (args.target !== undefined && args.target !== null && String(args.target) !== "") {
     node.target = String(args.target);
   }
@@ -102,6 +104,7 @@ export interface UpdateNodeArgs {
     name?: string;
     description?: string;
     location?: string;
+    doc?: string;
     state?: string;
     inputs?: string[];
     outputs?: string[];
@@ -120,6 +123,10 @@ export function updateNode(graph: FlowGraph, args: UpdateNodeArgs): FlowNode {
   if (p.name !== undefined) node.name = p.name;
   if (p.description !== undefined) node.description = p.description;
   if (p.location !== undefined) node.location = p.location;
+  if (p.doc !== undefined) {
+    if (p.doc) node.doc = p.doc;
+    else delete node.doc;
+  }
   if (p.state !== undefined) node.state = p.state as State;
   if (p.inputs !== undefined) node.inputs = p.inputs;
   if (p.outputs !== undefined) node.outputs = p.outputs;
@@ -351,7 +358,7 @@ export function batchImport(
       mod.description = m.description ?? "";
     }
     for (const n of m.nodes) {
-      addNode(graph, { moduleID: mod.id, nodeID: n.id, type: n.type, name: n.name, description: n.description, location: n.location, state: n.state, inputs: n.inputs, outputs: n.outputs, target: n.target });
+      addNode(graph, { moduleID: mod.id, nodeID: n.id, type: n.type, name: n.name, description: n.description, location: n.location, doc: (n as { doc?: string }).doc, state: n.state, inputs: n.inputs, outputs: n.outputs, target: n.target });
       const node = mod.nodes[n.id];
       if (n.fields) node.fields = n.fields;
       if (n.sql) node.sql = n.sql;
@@ -370,6 +377,7 @@ function compactNode(n: FlowNode): Record<string, unknown> {
   const o: Record<string, unknown> = { id: n.id, type: n.type, name: n.name, state: n.state };
   if (n.description) o.description = n.description;
   if (n.location) o.location = n.location;
+  if (n.doc) o.doc = n.doc;
   if (n.inputs?.length) o.inputs = n.inputs;
   if (n.outputs?.length) o.outputs = n.outputs;
   if (n.target) o.target = n.target;

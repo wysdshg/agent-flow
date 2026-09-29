@@ -156,6 +156,13 @@ step("readGraph 紧凑输出 / getProjectStatus 统计", () => {
   assert.ok(st.modules.every((m: any) => Object.keys(m.byState).length === 7));
 });
 
+step("addNode/updateNode 支持 doc 字段（功能文档路径）", () => {
+  const n = addNode(g, { moduleID: 5, nodeID: "D1", type: "process", name: "带文档节点", description: "测试", doc: ".flow/docs/demo.md" });
+  assert.equal(n.doc, ".flow/docs/demo.md");
+  const u = updateNode(g, { moduleID: 5, nodeID: "D1", patch: { doc: "" } });
+  assert.ok(!("doc" in u) || u.doc === "");
+});
+
 // ---------- validate ----------
 step("validateGraph：正常图通过，悬空边/坏引用/深嵌套被抓", () => {
   const okRes = validateGraph(g);
