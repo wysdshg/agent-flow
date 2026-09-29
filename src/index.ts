@@ -8,11 +8,14 @@
  *   batch <spec.json>    从 JSON spec 一次性建图（冷启动），完成后自动渲染
  *   apply <ops.json>     依次执行 [{tool,args}] 写操作，完成后自动渲染
  *   render               重新布局并生成 .flow/flow.html
+ *   serve                本地实时预览（HTTP + SSE 自动刷新）
+ *   export               导出 Mermaid 文本
  *   status               项目进度总览
  *   validate             校验流程图
  *   mcp                  启动 MCP stdio 服务
  */
 import fs from "node:fs";
+import path from "node:path";
 import { FlowStore } from "./core/store.js";
 import { FlowError } from "./core/schema.js";
 import {
@@ -31,6 +34,7 @@ import {
 import { validateGraph } from "./core/validate.js";
 import { layoutGraph } from "./layout/dagre.js";
 import { renderHtml } from "./render/html.js";
+import { toMermaid } from "./render/mermaid.js";
 
 const HELP = `agent-flow — 用流程图整理项目进度，给 AI agent 用的 MCP 插件
 
@@ -41,6 +45,9 @@ const HELP = `agent-flow — 用流程图整理项目进度，给 AI agent 用�
   batch <spec.json>    从 JSON spec 一次性建图（适合旧项目冷启动），完成后自动渲染
   apply <ops.json>     依次执行写操作 [{tool,args},...]，tool 见下方列表，完成后自动渲染
   render               重新自动布局并生成 .flow/flow.html（浏览器直接打开）
+  serve [--port N] [--no-open]
+                       本地实时预览：监听 .flow 目录，agent 改图后浏览器自动刷新（默认端口 3457 并自动开浏览器）
+  export [--out FILE]  导出 Mermaid 文本（默认 .flow/flow.mmd，可粘贴进 README/GitHub）
   status               项目进度总览（各模块七态统计 + broken/待决策清单）
   validate             校验流程图（悬空连线/非法状态/子模块引用/嵌套深度/环）
   mcp                  启动 MCP stdio 服务（一般由 MCP 客户端调用，不手动跑）
@@ -53,6 +60,8 @@ apply 可用的 tool：
   agent-flow init
   agent-flow batch flow-spec.json
   agent-flow render
+  agent-flow serve
+  agent-flow export --out docs/flow.mmd
   agent-flow status
 
 环境变量：AGENT_FLOW_ROOT 可指定项目根目录（默认当前目录）`;
@@ -144,6 +153,43 @@ async function main(): Promise<void> {
     const graph = store.load();
     render(store, graph);
     console.log(`已生成 ${store.htmlFile}`);
+    return;
+  }
+
+  if (cmd === "serve") {
+    let port = 3457;
+    let open = true;
+    for (let i = 1; i < argv.length; i++) {
+      if (argv[i] === "--port") {
+        port = Number(argv[++i]);
+        if (!Number.isInteger(port) || port < 0) die("--port 需要一个非负整数，如 --port 3458");
+      } else if (argv[i] === "--no-open") {
+        open = false;
+      } else {
+        die(`未知参数 "${argv[i]}"，serve 只支持 --port N / --no-open`);
+      }
+    }
+    const { startServe } = await import("./serve/serve.js");
+    await startServe(store, { port, open });
+    return;
+  }
+
+  if (cmd === "export") {
+    let out = "";
+    for (let i = 1; i < argv.length; i++) {
+      if (argv[i] === "--out") {
+        out = argv[++i] ?? "";
+        if (!out) die("--out 需要一个文件路径，如 --out flow.mmd");
+      } else {
+        die(`未知参数 "${argv[i]}"，export 只支持 --out <file>`);
+      }
+    }
+    const mmd = toMermaid(store.load());
+    const outFile = out || path.join(store.flowDir, "flow.mmd");
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    fs.writeFileSync(outFile, mmd, "utf-8");
+    console.log(`已导出 ${outFile}`);
+    console.log("Mermaid 文本可直接粘贴进 README / GitHub / mermaid.live 渲染");
     return;
   }
 

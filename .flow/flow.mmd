@@ -1,0 +1,61 @@
+flowchart LR
+classDef completed fill:#2ea44f,color:#1f2430
+classDef in_progress fill:#61aeee,color:#ffffff
+classDef planned fill:#0366d6,color:#1f2430
+classDef broken fill:#d73a4a,color:#1f2430
+classDef to_plan fill:#959da5,color:#ffffff
+classDef pending_decision fill:#ffd33d,color:#ffffff
+classDef deprecated fill:#6b7280,color:#1f2430
+subgraph mod_0[主流程图]
+  n0_S_start["项目启动"]
+  n0_F_flowjson[".flow/flow.json"]
+  n0_F_flowhtml[".flow/flow.html"]
+  subgraph mod_1[核心数据层]
+    n1_P1_schema["schema.ts 数据模型"]
+    n1_P1_store["store.ts 文件读写"]
+    n1_P1_ops["graph-ops.ts 图操作"]
+    n1_P1_validate["validate.ts 图校验"]
+    n1_J1_undo["撤销功能做不做？"]
+    n1_P1_schema --> n1_P1_store
+    n1_P1_store --> n1_P1_ops
+    n1_P1_ops --> n1_P1_validate
+  end
+  subgraph mod_2[自动布局层]
+    n2_P2_dagre["dagre 排版"]
+    n2_P2_size["节点尺寸估算"]
+    n2_OLD_manual["手写坐标方案"]
+    n2_P2_export["导出 PNG"]
+    n2_P2_size -->|先量尺寸| n2_P2_dagre
+  end
+  subgraph mod_3[HTML 渲染层]
+    n3_P3_html["HTML 生成器"]
+    n3_P3_viewer["查看器交互"]
+    n3_P3_compat["旧版 Edge 兼容"]
+    n3_P3_minimap["小地图导航"]
+    n3_P3_html -->|页面+脚本| n3_P3_viewer
+  end
+  subgraph mod_4[MCP 服务层]
+    n4_P4_server["server.ts 注册工具"]
+    n4_P4_err["中文报错"]
+    n4_P4_server --> n4_P4_err
+  end
+  subgraph mod_5[CLI 与技能层]
+    n5_P5_cli["CLI 命令行"]
+    n5_P5_skill["SKILL.md 规范"]
+    n5_P5_test["狗粮测试"]
+    n5_P5_cli -->|配规范| n5_P5_skill
+  end
+  n0_S_start -->|先做地基| mod_1
+  mod_1 -->|图数据| mod_2
+  mod_2 -->|坐标| mod_3
+  mod_3 -->|产物| mod_4
+  mod_4 -->|补通道| mod_5
+  n0_F_flowjson -->|读写| mod_1
+  mod_3 -->|生成| n0_F_flowhtml
+end
+class n0_S_start,n0_F_flowjson,n0_F_flowhtml,n1_P1_schema,n1_P1_store,n1_P1_ops,n1_P1_validate,n2_P2_dagre,n2_P2_size,n3_P3_html,n3_P3_viewer,n4_P4_server,n4_P4_err,n5_P5_cli,n5_P5_skill completed
+class n5_P5_test in_progress
+class n3_P3_compat broken
+class n2_P2_export,n3_P3_minimap to_plan
+class n1_J1_undo pending_decision
+class n2_OLD_manual deprecated
