@@ -5,8 +5,10 @@
  * 注意：VIEWER_JS 内嵌进 HTML 后会原样执行，因此禁止使用反斜杠、反引号和 ${}，
  * 一律用字符串拼接和 split/join。
  */
+import path from "node:path";
 import { FlowGraph, STATE_COLORS, STATE_LABELS } from "../core/schema.js";
 import { LayoutResult } from "../layout/dagre.js";
+import { toMermaid } from "./mermaid.js";
 
 const CSS = `
 *{box-sizing:border-box}
@@ -162,12 +164,16 @@ document.getElementById("stats").innerHTML=h;}
 
 function stateBadge(s){return '<span class="badge" style="background:'+COLORS[s]+'">'+LABELS[s]+"</span>";}
 function row(k,v){return '<div class="row"><span class="k">'+k+'</span><span class="val">'+v+"</span></div>";}
+function fileName(p){var i=Math.max(p.lastIndexOf("/"),p.lastIndexOf(String.fromCharCode(92)));return i>=0?p.slice(i+1):p;}
+function locRow(loc,links){var h='<span class="loc">'+esc(loc)+'</span><span class="copy" data-copy="'+esc(loc)+'">复制</span>';
+if(links&&links.length){for(var i=0;i<links.length;i++){var l=links[i];h+=' <a class="copy" data-loc="'+esc(l.path)+'" data-line="'+(l.line||"")+'" title="在 IDE 中打开">'+esc(fileName(l.path))+(l.line?":"+l.line:"")+" ↗</a>";}}
+return h;}
 
 var curDetail=null;
 function showOps(ops){var txt=JSON.stringify(ops);var box=document.getElementById("opsbox");var cp=document.getElementById("opscopy");if(!box)return;box.textContent=txt;box.style.display="block";cp.style.display="block";
 if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast("指令已复制，发给 AI 即可执行");},function(){});}}
 function showDetail(n){curDetail=n;var d=document.getElementById("detail");var h='<span class="close" data-close="1">×</span><h3>'+esc(n.name)+"</h3><div>"+stateBadge(n.state)+" <span style='color:#8a93a3;font-size:12px;margin-left:6px'>"+esc(TYPE_NAMES[n.type]||n.type)+"</span></div>";
-h+=row("位置",n.location?'<span class="loc">'+esc(n.location)+'</span><span class="copy" data-copy="'+esc(n.location)+'">复制</span>':"<span style='color:#b6bdc9'>未填写</span>");
+h+=row("位置",n.location?locRow(n.location,n.locLinks):"<span style='color:#b6bdc9'>未填写</span>");
 h+=row("说明",n.description?esc(n.description):"<span style='color:#b6bdc9'>未填写</span>");
 if(n.target&&MODS[n.target])h+=row("子图",'<a class="copy" data-open="'+esc(n.target)+'">进入 '+esc(MODS[n.target].name)+" →</a>");
 if(n.inputs&&n.inputs.length)h+=row("输入",esc(n.inputs.join("、")));
@@ -186,7 +192,7 @@ var h='<span class="close" data-close="1">×</span><h3>连线：'+esc(a?a.name:e
 if(e.state)h+=row("状态",stateBadge(e.state));
 h+=row("文字",e.text?esc(e.text):"<span style='color:#b6bdc9'>无</span>");
 h+=row("说明",e.description?esc(e.description):"<span style='color:#b6bdc9'>未填写</span>");
-if(e.location)h+=row("位置",'<span class="loc">'+esc(e.location)+"</span>");
+if(e.location)h+=row("位置",locRow(e.location,e.locLinks));
 d.innerHTML=h;d.style.display="block";}
 
 function hideDetail(){document.getElementById("detail").style.display="none";}
@@ -237,6 +243,8 @@ if(opb&&curDetail){if(opb.getAttribute("data-op")==="state"){var ssv=document.ge
 else{showOps([{tool:"delete_node",args:{moduleID:cur,nodeID:curDetail.id}}]);}return;}
 var cpo=ev.target.closest("[data-copyops]");
 if(cpo){var ob=document.getElementById("opsbox");if(ob&&ob.textContent){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ob.textContent).then(function(){toast("指令已复制");},function(){toast("复制失败，请手动选择");});}else{toast("浏览器不支持一键复制，请手动选择");}}return;}
+var lc=ev.target.closest("[data-loc]");
+if(lc){var lp=lc.getAttribute("data-loc");var ll=lc.getAttribute("data-line");window.open("vscode://file/"+encodeURIComponent(lp)+(ll?":"+ll:""),"_blank");return;}
 var cp=ev.target.closest("[data-copy]");
 if(cp){var txt=cp.getAttribute("data-copy");
 if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast("已复制："+txt);},function(){toast("复制失败，请手动选择文本");});}
@@ -303,6 +311,33 @@ __MARKERS__
 <script>
 `;
 
+/** 代码定位跳转链接（Node 侧预解析好，前端直接拼 vscode:// 链接） */
+export interface LocLink {
+  path: string;
+  line?: number;
+}
+
+/**
+ * 把 location 字符串解析成定位列表。支持三种行号写法：
+ * "src/a.ts:12"、"src/a.ts 12"、"README.md 20-50行"（区间取起始行），
+ * 分号分隔多段；提取不到带扩展名路径的段丢弃；相对路径拼 root 成绝对路径。
+ * 放在 Node 侧做，避开 VIEWER_JS 禁用反斜杠/正则的约束。
+ */
+export function parseLocation(location: string, root: string): LocLink[] {
+  const out: LocLink[] = [];
+  for (const seg of location.split(";")) {
+    const m = /((?:[A-Za-z]:)?[^\s:]*\.[A-Za-z0-9]+)(?::(\d+))?(?:\s+(\d+)(?:\s*-\s*\d+)?\s*行?)?/.exec(seg.trim());
+    if (!m) continue;
+    const p = m[1];
+    const line = m[2] ? Number(m[2]) : m[3] ? Number(m[3]) : undefined;
+    const isAbs = path.isAbsolute(p) || /^[A-Za-z]:[\\/]/.test(p);
+    const link: LocLink = { path: isAbs ? p : path.join(root, p) };
+    if (line !== undefined) link.line = line;
+    out.push(link);
+  }
+  return out;
+}
+
 interface VNode {
   id: string;
   type: string;
@@ -316,6 +351,7 @@ interface VNode {
   dbNodeId?: string;
   fields?: { name: string; type?: string; desc?: string }[];
   sql?: string;
+  locLinks?: LocLink[];
   x: number;
   y: number;
   w: number;
@@ -329,11 +365,14 @@ interface VEdge {
   text?: string;
   description?: string;
   state?: string;
+  locLinks?: LocLink[];
 }
 
-function buildViewData(graph: FlowGraph, layout: LayoutResult) {
+function buildViewData(graph: FlowGraph, layout: LayoutResult, root: string) {
   return {
     project: graph.project,
+    root,
+    mermaid: toMermaid(graph),
     modules: Object.values(graph.modules).map((m) => {
       const lay = layout.modules[m.id];
       const nodes: VNode[] = Object.values(m.nodes).map((n) => {
@@ -356,6 +395,10 @@ function buildViewData(graph: FlowGraph, layout: LayoutResult) {
         if (n.dbNodeId) v.dbNodeId = n.dbNodeId;
         if (n.fields?.length) v.fields = n.fields;
         if (n.sql) v.sql = n.sql;
+        if (n.location) {
+          const locs = parseLocation(n.location, root);
+          if (locs.length) v.locLinks = locs;
+        }
         return v;
       });
       const edges: VEdge[] = Object.values(m.edges).map((e) => {
@@ -363,6 +406,10 @@ function buildViewData(graph: FlowGraph, layout: LayoutResult) {
         if (e.text) v.text = e.text;
         if (e.description) v.description = e.description;
         if (e.state) v.state = e.state;
+        if (e.location) {
+          const locs = parseLocation(e.location, root);
+          if (locs.length) v.locLinks = locs;
+        }
         return v;
       });
       return {
@@ -378,7 +425,7 @@ function buildViewData(graph: FlowGraph, layout: LayoutResult) {
   };
 }
 
-export function renderHtml(graph: FlowGraph, layout: LayoutResult): string {
+export function renderHtml(graph: FlowGraph, layout: LayoutResult, root = ""): string {
   // 每种状态一个箭头 marker
   const markers = Object.entries(STATE_COLORS)
     .map(
@@ -387,7 +434,7 @@ export function renderHtml(graph: FlowGraph, layout: LayoutResult): string {
     )
     .join("\n");
 
-  const data = buildViewData(graph, layout);
+  const data = buildViewData(graph, layout, root);
   // 内容 hash：图数据一变，浏览器里保存的手工布局自动失效（localStorage 按 hash 隔离）
   const raw = JSON.stringify(data);
   let hh = 5381;

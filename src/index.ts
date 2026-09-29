@@ -65,7 +65,7 @@ function die(msg: string): never {
 /** 布局 + 渲染 HTML */
 function render(store: FlowStore, graph: ReturnType<FlowStore["load"]>): void {
   const layout = layoutGraph(graph);
-  store.saveHtml(renderHtml(graph, layout));
+  store.saveHtml(renderHtml(graph, layout, store.root));
 }
 
 /** apply 命令支持的工具 → graph-ops 函数映射（都是写操作） */

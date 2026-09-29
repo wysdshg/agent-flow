@@ -403,7 +403,7 @@ export async function startMcp(): Promise<void> {
       try {
         const graph = read();
         const layout = layoutGraph(graph);
-        const html = renderHtml(graph, layout);
+        const html = renderHtml(graph, layout, store.root);
         store.saveHtml(html);
         const nodes = Object.values(graph.modules).reduce((a, m) => a + Object.keys(m.nodes).length, 0);
         return ok({

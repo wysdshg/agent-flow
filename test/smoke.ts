@@ -24,7 +24,7 @@ import {
 import { FlowError } from "../src/core/schema.js";
 import { validateGraph } from "../src/core/validate.js";
 import { layoutGraph } from "../src/layout/dagre.js";
-import { renderHtml } from "../src/render/html.js";
+import { parseLocation, renderHtml } from "../src/render/html.js";
 import { toMermaid } from "../src/render/mermaid.js";
 
 let passed = 0;
@@ -199,6 +199,24 @@ step("toMermaid 生成合法 flowchart（subgraph 嵌套/classDef/边 label/id �
   assert.ok(mmd.includes("n1_P1 -->|通过| n1_P2"));
   assert.ok(mmd.includes("class n0_S1 completed"));
   assert.ok(mmd.includes("class n1_P1 in_progress"));
+});
+
+// ---------- parseLocation（代码定位跳转） ----------
+step("parseLocation 三种行号写法/多段/无路径段丢弃/相对拼 root/绝对路径不拼", () => {
+  const root = "/tmp/proj";
+  const r1 = parseLocation("src/a.ts:12", root);
+  assert.equal(r1.length, 1);
+  assert.equal(r1[0].path, path.join(root, "src/a.ts"));
+  assert.equal(r1[0].line, 12);
+  assert.equal(parseLocation("src/b.ts 8", root)[0].line, 8);
+  assert.equal(parseLocation("README.md 20-50行", root)[0].line, 20);
+  assert.ok(!("line" in parseLocation("src/c.ts", root)[0]));
+  assert.deepEqual(parseLocation("没有路径的函数 loadStore()", root), []);
+  const r2 = parseLocation("src/a.ts:1; README.md 20-50行", root);
+  assert.equal(r2.length, 2);
+  assert.equal(r2[1].line, 20);
+  assert.equal(parseLocation("/abs/x.ts:3", root)[0].path, "/abs/x.ts");
+  assert.equal(parseLocation("C:\\x\\y.ts:3", root)[0].path, "C:\\x\\y.ts");
 });
 
 // ---------- layout + render ----------
