@@ -36,6 +36,40 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 6. 每完成一件事就同步图（加节点/改状态），**不要攒到最后一次性补**。
 7. **整理旧项目必须以代码实况为准**：项目的 md 文档可能过时、有错或与代码脱节，禁止照抄文档直接建图。节点描述、连线关系、状态判断要基于**读代码、跑测试**后的结论；发现文档与代码冲突时以代码为准，并在节点 description 里注明"文档写的 X，实际代码是 Y"。
 8. **尊重并感知人工改动**：用户可能手工编辑过 flow.json，或在网页详情面板生成过修改指令（`[{"tool":...}]` JSON）。每次会话开工必须先 `get_project_status`/`read_graph` **重新读磁盘上的最新图**，禁止凭上次会话的记忆直接改图；发现用户手工加的节点或改动要原样保留，拿不准就问用户。用户发来一段 ops JSON 时，逐条执行并汇报结果。
+9. **建功能节点必建文档**：给功能/模块节点挂 `doc` 字段（`.flow/docs/<功能名>.md`），文档不存在时 `validate_graph` 会返回 docWarnings。规则见下文「功能文档」。
+
+## 怎么用图了解项目（读侧，会话开场）
+
+图是**索引**，md 文档是**正文**，代码是**源头**。三层按需加载，不要一上来吞全量：
+
+```
+1. get_project_status        → 七态统计，只记两件事：哪些 broken、哪些 pending_decision
+2. 有 broken/待决策？        → 这才是本次要干活的清单，别的先不看
+3. read_graph moduleID=X     → 只读目标模块，看节点状态和连线关系
+4. 想深入某个节点？           → 读它 doc 字段指向的 md（为什么做/怎么实现/怎么扩展都在里面）
+5. 要动手改代码才去读代码     → 用节点 location 字段定位文件与行号
+```
+
+用户问"项目现在怎么样"→ 答第 1 步的统计 + 第 2 步清单即可，别复述整张图。
+用户问"XX 功能怎么实现的"→ 直接读那个节点的 doc md，读完给结论，别全文背诵。
+
+## 功能文档（doc 字段）
+
+**何时写**：新建功能/模块节点时**同步**创建 md 并挂 `doc`；节点改 completed 前文档必须完整。一个功能一个文件，放 `.flow/docs/`（文件名=功能名，kebab-case），并在 `.flow/docs/README.md` 索引里登记一行（名称|一句话|状态）。
+
+**模板（六段，总长 ≤ 100 行，写不出来的段就删掉）**：
+
+```markdown
+# <功能名>
+## 为什么做    ← 背景与痛点，2-3 句大白话
+## 解决什么    ← 给谁用、带来什么变化
+## 怎么实现    ← 关键设计决策 + 为什么这么选；不贴大段代码，给文件:行号
+## 怎么扩展    ← 扩展点、约束、别踩的坑
+## 代码位置    ← src/xxx.ts:12 清单
+## 关联        ← 相关节点 ID / 上下游文档链接
+```
+
+**怎么做**：add_node 或 update_node 时传 `doc: ".flow/docs/<功能名>.md"`；文档里别复制图的描述（description 管一句话，md 管展开），也别把多个功能写进同一个 md。用户在详情面板点「文件名 ↗」就是打开这份 md。
 
 ## 标准会话流程
 
@@ -43,7 +77,9 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 开工：  get_project_status → （需要细节时）read_graph moduleID=X
 干活中：add_node / n2n / add_table ...（新想法 to_plan，动手了改 in_progress）
 收工：  update_node 把写完测过的节点改 completed（出 bug 改 broken）
-        → validate_graph → render_html → 告诉用户"图已更新，打开 .flow/flow.html 查看
+        → 补全该功能的 doc md（为什么做/怎么实现/怎么扩展写全）
+        → validate_graph（有 docWarnings 先补文档）→ render_html
+        → 告诉用户"图已更新，打开 .flow/flow.html 查看
         （若用户跑过 agent-flow serve，浏览器会自动刷新，无需手动重开）"
 ```
 
@@ -54,7 +90,7 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 | get_project_status | 进度总览 | 无 |
 | read_graph | 读图（推荐按模块读） | moduleID? |
 | create_sub_module | 建子模块画布 | name, description? |
-| add_node | 加节点 | moduleID, nodeID, type, name, description, state?, location?, inputs?, outputs?, target? |
+| add_node | 加节点 | moduleID, nodeID, type, name, description, state?, location?, doc?, inputs?, outputs?, target? |
 | update_node | 改节点 | moduleID, nodeID, patch{state,...} |
 | delete_node | 删节点（级联删线） | moduleID, nodeID |
 | n2n | 连线 | moduleID, node1, node2, text? |
@@ -62,7 +98,7 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 | add_table | 加数据表 | moduleID, tableId, dbNodeId?, tableName, fields[] |
 | add_sql | 加 SQL 节点 | moduleID, sqlId, dbNodeId?, name, sql |
 | batch_import | 一次性建图（冷启动） | spec{project?, replace?, modules[]} |
-| validate_graph | 校验 | moduleID? |
+| validate_graph | 校验（含 docWarnings 文档缺失提醒） | moduleID? |
 | render_html | 生成/刷新网页 | 无 |
 
 ## 节点类型（22 种）
