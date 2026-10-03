@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "agent-flow",
-  "updatedAt": "2026-09-29T14:17:08.102Z",
+  "updatedAt": "2026-10-03T03:04:15.902Z",
   "modules": {
     "0": {
       "id": "0",
@@ -389,6 +389,17 @@
           "createdAt": "2026-09-24T09:03:25.943Z",
           "updatedAt": "2026-09-29T13:11:33.901Z",
           "doc": ".flow/docs/mcp-server.md"
+        },
+        "P4_root": {
+          "id": "P4_root",
+          "type": "process",
+          "name": "多项目根隔离",
+          "description": "14 个工具支持 project_root，按项目隔离 .flow，杜绝多项目串台",
+          "location": "src/mcp/server.ts resolveStore()",
+          "state": "completed",
+          "createdAt": "2026-10-03T03:04:15.901Z",
+          "updatedAt": "2026-10-03T03:04:15.901Z",
+          "doc": ".flow/docs/mcp-server.md"
         }
       },
       "edges": {
@@ -397,6 +408,13 @@
           "from": "P4_server",
           "to": "P4_err",
           "createdAt": "2026-09-24T09:03:25.943Z"
+        },
+        "e2": {
+          "id": "e2",
+          "from": "P4_server",
+          "to": "P4_root",
+          "createdAt": "2026-10-03T03:04:15.902Z",
+          "text": "扩展"
         }
       }
     },
