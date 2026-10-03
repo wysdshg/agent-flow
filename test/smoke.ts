@@ -27,6 +27,7 @@ import { layoutGraph } from "../src/layout/dagre.js";
 import { parseLocation, renderHtml } from "../src/render/html.js";
 import { toMermaid } from "../src/render/mermaid.js";
 import { startServe } from "../src/serve/serve.js";
+import { resolveStore } from "../src/mcp/server.js";
 
 let passed = 0;
 async function step(name: string, fn: () => void | Promise<void>): Promise<void> {
@@ -330,6 +331,28 @@ await step("startServe：随机端口/注入 EventSource/404/磁盘保持纯净"
   server.closeAllConnections(); // 断开 undici keep-alive，让 server.close 立即完成
   server.close();
   fs.rmSync(stmp, { recursive: true, force: true });
+});
+
+await step("resolveStore：多项目根互相隔离，缺省回退 env/启动目录", () => {
+  const ra = fs.mkdtempSync(path.join(os.tmpdir(), "af-root-a-"));
+  const rb = fs.mkdtempSync(path.join(os.tmpdir(), "af-root-b-"));
+  const sa = resolveStore(ra);
+  const sb = resolveStore(rb);
+  assert.equal(sa.root, path.resolve(ra));
+  assert.notEqual(sa.flowFile, sb.flowFile, "两个项目根的 .flow/flow.json 必须是不同文件");
+  const ga = sa.load();
+  batchImport(ga, { modules: [{ name: "A 图", nodes: [{ id: "A1", type: "process", name: "A节点", description: "" }] }] });
+  sa.save(ga);
+  const gb = sb.load();
+  assert.ok(!gb.modules["1"], "B 根不应看到 A 根的模块（串台）");
+  assert.equal((getProjectStatus(gb) as any).totalModules, 1);
+  assert.equal(resolveStore(ra), sa, "同根应命中缓存");
+  process.env.AGENT_FLOW_ROOT = ra;
+  assert.equal(resolveStore().root, path.resolve(ra), "无参回退 AGENT_FLOW_ROOT");
+  delete process.env.AGENT_FLOW_ROOT;
+  assert.equal(resolveStore().root, path.resolve(process.cwd()), "无 env 回退启动目录");
+  fs.rmSync(ra, { recursive: true, force: true });
+  fs.rmSync(rb, { recursive: true, force: true });
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });

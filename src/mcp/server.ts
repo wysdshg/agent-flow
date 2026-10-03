@@ -4,6 +4,7 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import path from "node:path";
 import { z } from "zod";
 import { FlowStore } from "../core/store.js";
 import {
@@ -36,6 +37,34 @@ function fail(err: unknown): ToolResult {
   return { content: [{ type: "text", text: "操作失败：" + msg }], isError: true };
 }
 
+/**
+ * MCP 服务是全局唯一进程，但工具调用可能来自任意项目。
+ * 每个工具都有可选 project_root 参数：按绝对路径解析并缓存 FlowStore，
+ * 把 .flow/ 隔离在各项目内；不传时回退 AGENT_FLOW_ROOT / 启动目录（向后兼容单项目用法）。
+ * 按调用解析（无会话级状态），多个项目/会话并发调用也不会串台。
+ */
+const storeCache = new Map<string, FlowStore>();
+
+export function resolveStore(projectRoot?: string): FlowStore {
+  const root = path.resolve(projectRoot || process.env.AGENT_FLOW_ROOT || process.cwd());
+  let s = storeCache.get(root);
+  if (!s) {
+    s = new FlowStore(root);
+    storeCache.set(root, s);
+  }
+  return s;
+}
+
+/** 14 个工具共用的可选参数：多项目共用一个 MCP 服务时每次必传 */
+const projectRootField = {
+  project_root: z
+    .string()
+    .optional()
+    .describe(
+      "项目根目录（绝对路径优先）。多个项目共用一个 agent-flow MCP 服务时每次必传，把 .flow/ 隔离在各自项目里；不传落到服务启动目录，会多项目串台",
+    ),
+};
+
 const batchNodeShape = {
   id: z.string().describe("节点 ID"),
   type: z.string().describe("节点类型，22 种之一"),
@@ -49,6 +78,7 @@ const batchNodeShape = {
   dbNodeId: z.string().optional().describe("所属 database 节点 ID"),
   fields: z.array(tableFieldSchema).optional().describe("table 节点的字段"),
   sql: z.string().optional().describe("sql 节点的 SQL 内容"),
+  doc: z.string().optional().describe("功能文档路径（.flow/docs/<名>.md）"),
 };
 
 const batchModuleShape = {
@@ -71,11 +101,7 @@ const batchModuleShape = {
 };
 
 export async function startMcp(): Promise<void> {
-  const store = new FlowStore();
   const server = new McpServer({ name: "agent-flow", version: "0.1.0" });
-
-  const read = () => store.load();
-  const save = (g: ReturnType<typeof store.load>) => store.save(g);
 
   server.registerTool(
     "get_project_status",
@@ -83,11 +109,12 @@ export async function startMcp(): Promise<void> {
       title: "项目状态总览",
       description:
         "查看项目各模块的进度统计（各状态节点数、broken/pending_decision 清单）。每次开发会话开工前先调用它了解现状，不要凭记忆猜。",
-      inputSchema: {},
+      inputSchema: { ...projectRootField },
     },
-    async () => {
+    async (args) => {
       try {
-        return ok(getProjectStatus(read()));
+        const store = resolveStore(args?.project_root);
+        return ok({ ...getProjectStatus(store.load()), project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -100,11 +127,12 @@ export async function startMcp(): Promise<void> {
       title: "读流程图",
       description:
         "读取流程图数据。传 moduleID 只读一个模块（推荐，省上下文）；不传读全图。改图之前必须先读相关模块。",
-      inputSchema: { moduleID: z.number().int().min(0).optional().describe("模块编号，0=主流程图") },
+      inputSchema: { ...projectRootField, moduleID: z.number().int().min(0).optional().describe("模块编号，0=主流程图") },
     },
     async (args) => {
       try {
-        return ok(readGraph(read(), { moduleID: args.moduleID }));
+        const store = resolveStore(args?.project_root);
+        return ok({ ...readGraph(store.load(), { moduleID: args.moduleID }), project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -118,6 +146,7 @@ export async function startMcp(): Promise<void> {
       description:
         "新建一个子模块画布，返回新的 moduleID。主图只放模块级节点，内部流程放子模块画布里。创建后记得在主图用 add_node(type=module, target=返回的moduleID) 加一个对应的模块节点。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).optional().describe("（预留）父模块编号，一般不传"),
         name: z.string().describe("模块名，如：章节生成模块"),
         description: z.string().optional().describe("模块职责，中文大白话"),
@@ -125,10 +154,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const res = createSubModule(graph, args);
-        save(graph);
-        return ok({ ...res, hint: `已创建子模块画布 ${res.moduleID}。请在主图(moduleID=0)加一个 type=module 的节点并把 target 设为 ${res.moduleID}，才能从主图跳转进来。` });
+        store.save(graph);
+        return ok({ ...res, project_root: store.root, hint: `已创建子模块画布 ${res.moduleID}。请在主图(moduleID=0)加一个 type=module 的节点并把 target 设为 ${res.moduleID}，才能从主图跳转进来。` });
       } catch (e) {
         return fail(e);
       }
@@ -141,14 +171,15 @@ export async function startMcp(): Promise<void> {
       title: "添加节点",
       description:
         "向指定画布添加节点。type 必须是 22 种类型之一；state 必须是七态之一（新想法用 to_plan，方案定了用 planned，开始写了用 in_progress，写完测过用 completed）。description 必须用中文大白话。",
-      inputSchema: addNodeSchema,
+      inputSchema: { ...addNodeSchema, ...projectRootField },
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const node = addNode(graph, args);
-        save(graph);
-        return ok({ added: node.id, type: node.type, state: node.state, moduleID: String(args.moduleID) });
+        store.save(graph);
+        return ok({ added: node.id, type: node.type, state: node.state, moduleID: String(args.moduleID), project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -162,6 +193,7 @@ export async function startMcp(): Promise<void> {
       description:
         "修改已有节点的名称/描述/位置/状态/端口。最常见的用途：功能写完测过后把 state 改成 completed；发现回归 bug 改成 broken。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).describe("模块编号"),
         nodeID: z.string().describe("节点 ID"),
         patch: z
@@ -169,6 +201,7 @@ export async function startMcp(): Promise<void> {
             name: z.string().optional(),
             description: z.string().optional(),
             location: z.string().optional(),
+            doc: z.string().optional().describe("功能文档路径（.flow/docs/<名>.md），传空串删除"),
             state: z.string().optional(),
             inputs: z.array(z.string()).optional(),
             outputs: z.array(z.string()).optional(),
@@ -179,10 +212,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const node = updateNode(graph, args);
-        save(graph);
-        return ok({ updated: node.id, state: node.state });
+        store.save(graph);
+        return ok({ updated: node.id, state: node.state, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -194,17 +228,15 @@ export async function startMcp(): Promise<void> {
     {
       title: "删除节点",
       description: "删除节点，相关连线会一并删除。",
-      inputSchema: {
-        moduleID: z.number().int().min(0).describe("模块编号"),
-        nodeID: z.string().describe("节点 ID"),
-      },
+      inputSchema: { ...projectRootField, moduleID: z.number().int().min(0).describe("模块编号"), nodeID: z.string().describe("节点 ID") },
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const res = deleteNode(graph, args);
-        save(graph);
-        return ok({ deleted: args.nodeID, removedEdges: res.removedEdges });
+        store.save(graph);
+        return ok({ deleted: args.nodeID, removedEdges: res.removedEdges, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -217,6 +249,7 @@ export async function startMcp(): Promise<void> {
       title: "节点连线",
       description: "在两个节点之间连一条有向边（从 node1 指向 node2）。text 是连线上的短文字，如「角色实体」。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).describe("模块编号"),
         node1: z.string().describe("起点节点 ID"),
         node2: z.string().describe("终点节点 ID"),
@@ -228,10 +261,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const edge = addEdge(graph, args);
-        save(graph);
-        return ok({ edgeId: edge.id, from: edge.from, to: edge.to });
+        store.save(graph);
+        return ok({ edgeId: edge.id, from: edge.from, to: edge.to, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -244,6 +278,7 @@ export async function startMcp(): Promise<void> {
       title: "修改连线",
       description: "修改连线的文字/说明/状态。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).describe("模块编号"),
         edgeID: z.string().describe("连线 ID，如 e3"),
         patch: z
@@ -258,10 +293,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const edge = updateEdge(graph, args);
-        save(graph);
-        return ok({ updated: edge.id });
+        store.save(graph);
+        return ok({ updated: edge.id, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -273,17 +309,15 @@ export async function startMcp(): Promise<void> {
     {
       title: "删除连线",
       description: "删除一条连线。",
-      inputSchema: {
-        moduleID: z.number().int().min(0).describe("模块编号"),
-        edgeID: z.string().describe("连线 ID，如 e3"),
-      },
+      inputSchema: { ...projectRootField, moduleID: z.number().int().min(0).describe("模块编号"), edgeID: z.string().describe("连线 ID，如 e3") },
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         deleteEdge(graph, args);
-        save(graph);
-        return ok({ deleted: args.edgeID });
+        store.save(graph);
+        return ok({ deleted: args.edgeID, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -296,6 +330,7 @@ export async function startMcp(): Promise<void> {
       title: "添加数据表",
       description: "添加一张数据表（ER 表）节点，需先有 type=database 的数据库节点，用 dbNodeId 绑定它。字段名和说明用大白话。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).describe("模块编号"),
         tableId: z.string().describe("表节点 ID，如 T_user"),
         dbNodeId: z.string().optional().describe("所属数据库节点 ID"),
@@ -310,10 +345,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const node = addTable(graph, args);
-        save(graph);
-        return ok({ added: node.id, table: node.name, fields: node.fields?.length ?? 0 });
+        store.save(graph);
+        return ok({ added: node.id, table: node.name, fields: node.fields?.length ?? 0, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -326,6 +362,7 @@ export async function startMcp(): Promise<void> {
       title: "添加 SQL 脚本",
       description: "添加一条关键 SQL/查询逻辑节点，绑定到 database 节点上。",
       inputSchema: {
+        ...projectRootField,
         moduleID: z.number().int().min(0).describe("模块编号"),
         sqlId: z.string().describe("SQL 节点 ID，如 Q_hot_chapters"),
         dbNodeId: z.string().optional().describe("所属数据库节点 ID"),
@@ -338,10 +375,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const node = addSQL(graph, args);
-        save(graph);
-        return ok({ added: node.id });
+        store.save(graph);
+        return ok({ added: node.id, project_root: store.root });
       } catch (e) {
         return fail(e);
       }
@@ -355,6 +393,7 @@ export async function startMcp(): Promise<void> {
       description:
         "从一份 JSON spec 一次性建出整张图，用于给旧项目整理现状或初始化新项目。spec.modules[].id 不传则自动分配；replace=true 时清空同名模块后重建。",
       inputSchema: {
+        ...projectRootField,
         spec: z.object({
           project: z.string().optional().describe("项目名"),
           replace: z.boolean().optional().describe("模块已存在时是否清空重建，默认 false"),
@@ -364,10 +403,11 @@ export async function startMcp(): Promise<void> {
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const res = batchImport(graph, args.spec);
-        save(graph);
-        return ok({ ...res, hint: "建议接着调用 validate_graph 检查一遍，再 render_html 生成查看页面" });
+        store.save(graph);
+        return ok({ ...res, project_root: store.root, hint: "建议接着调用 validate_graph 检查一遍，再 render_html 生成查看页面" });
       } catch (e) {
         return fail(e);
       }
@@ -380,11 +420,12 @@ export async function startMcp(): Promise<void> {
       title: "校验流程图",
       description:
         "检查图是否合法：节点/连线 ID、悬空连线、非法 state、子模块引用、表绑定、嵌套深度。每次动图之后调用。同时返回 docWarnings：挂了 doc 但文档文件不存在的节点清单。",
-      inputSchema: { moduleID: z.number().int().min(0).optional().describe("只校验某个模块，缺省校验全图") },
+      inputSchema: { ...projectRootField, moduleID: z.number().int().min(0).optional().describe("只校验某个模块，缺省校验全图") },
     },
     async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const res = validateGraph(graph, args?.moduleID);
         const miss = missingDocs(graph, store.root);
         const dIss = docIssues(graph, store.root);
@@ -397,7 +438,7 @@ export async function startMcp(): Promise<void> {
                   .map((d) => `${d.doc}（${d.problem}）`)
                   .join("；")}`
               : undefined;
-        return ok({ ...res, docWarnings: miss, docHeaderIssues: dIss, ...(hint ? { hint } : {}) });
+        return ok({ ...res, docWarnings: miss, docHeaderIssues: dIss, project_root: store.root, ...(hint ? { hint } : {}) });
       } catch (e) {
         return fail(e);
       }
@@ -410,11 +451,12 @@ export async function startMcp(): Promise<void> {
       title: "生成流程图网页",
       description:
         "自动布局并生成单文件 .flow/flow.html，用户可用浏览器直接打开查看。建图/改图完成后调用它刷新页面。",
-      inputSchema: {},
+      inputSchema: { ...projectRootField },
     },
-    async () => {
+    async (args) => {
       try {
-        const graph = read();
+        const store = resolveStore(args?.project_root);
+        const graph = store.load();
         const layout = layoutGraph(graph);
         const html = renderHtml(graph, layout, store.root);
         store.saveHtml(html);
@@ -423,6 +465,7 @@ export async function startMcp(): Promise<void> {
           path: store.htmlFile,
           modules: Object.keys(graph.modules).length,
           nodes,
+          project_root: store.root,
           hint: "已生成，用浏览器打开即可查看；改动图数据后重新调用本工具刷新",
         });
       } catch (e) {
