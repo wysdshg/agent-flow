@@ -57,6 +57,7 @@ cd agent-flow && npm install && npm run build && npm link
 ```
 
 > Claude Code 也可以直接：`claude mcp add agent-flow -- agent-flow mcp`
+> **多项目注意**：MCP 服务是全局唯一进程，14 个工具都支持可选 `project_root`（项目绝对路径）——让 agent 每次调用都传，各项目的 `.flow/` 才不会串台；单项目专用配置也可加 `"env": { "AGENT_FLOW_ROOT": "C:\\path\\to\\project" }`。
 
 之后照常和 agent 聊天即可：**「整理一下这个项目的进度和流程」**、**「这个功能做完了，更新到流程图」**。
 

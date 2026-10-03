@@ -80,6 +80,7 @@ Then add the MCP server to your AI tool (Trae / Claude Desktop / Cursor / any MC
 
 > - Claude Code: `claude mcp add agent-flow -- agent-flow mcp`
 > - Cursor: put the JSON above in `.cursor/mcp.json`
+> - **Multi-project?** The MCP server is one global process. All 14 tools accept an optional `project_root` (workspace absolute path) — tell your agent to pass it on every call so each project keeps its own `.flow/`. Or pin a single-project server with `"env": { "AGENT_FLOW_ROOT": "C:\\path\\to\\project" }` in the config.
 > - No MCP environment? Use the CLI fallback: `agent-flow batch spec.json` builds the whole graph from one JSON file and renders it.
 
 Now just tell your agent: **"Organize this project's progress into a flowchart"** — and keep talking to it normally while it maintains the graph.

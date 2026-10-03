@@ -14,6 +14,7 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 > 能跑就直接用；提示命令不存在就现场安装：`git clone https://github.com/wysdshg/agent-flow && cd agent-flow && npm install && npm link`。
 > 若当前会话没有 agent-flow 的 MCP 工具，改用 CLI：`agent-flow init / batch / apply / render / status / validate / serve / export`
 > （`apply` 接 `[{tool,args},...]`，tool 与下表同名；`batch` 接建图 spec；`serve` 起本地实时预览，改图后浏览器自动刷新；`export` 导出 Mermaid 文本可贴 README）。`AGENT_FLOW_ROOT` 环境变量可指定项目根。
+> **多项目共用这个 MCP 服务时，每次工具调用都要传 `project_root` 参数**（见下文「多项目隔离」），否则会把不同项目的图混在一起。
 
 ## 铁律（必须遵守）
 
@@ -106,6 +107,16 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 5. 汇报："图已建好，X 个节点拿不准标了 to_plan 待你确认"
 ```
 
+## 多项目隔离（MCP 模式必读）
+
+MCP 服务是全局唯一进程：无论在哪个项目的会话里调用，都是同一个 server 进程。14 个工具全部支持可选 `project_root` 参数（项目根目录，绝对路径优先）：
+
+- **多项目环境每次调用都传** `project_root: "<当前项目绝对路径>"`，把 `.flow/` 隔离在各项目内
+- 不传时落到服务启动目录（Windows 上是 `C:\Users\<你>\.flow\`），不同项目的图会混进同一个 flow.json
+- 每个工具的返回值都带 `project_root` 字段，用它核对有没有串台；发现混了就删掉错误目录下的 `.flow/` 重建
+- 单项目专用配置可以固定根目录：mcpServers 配置加 `"env": { "AGENT_FLOW_ROOT": "C:\\path\\to\\project" }`，此后可不传 project_root
+- CLI 模式无此问题（每次进程启动时就在项目里跑，或用 `AGENT_FLOW_ROOT`）
+
 ## 标准会话流程
 
 ```
@@ -121,6 +132,8 @@ description: 用流程图给用户整理项目进度与流程。当用户要求"
 ```
 
 ## 工具速查（14 个）
+
+> 全部工具都支持可选 `project_root`（项目根绝对路径）：多项目共用 MCP 时每次必传，见「多项目隔离」。
 
 | 工具 | 用途 | 关键参数 |
 |---|---|---|
